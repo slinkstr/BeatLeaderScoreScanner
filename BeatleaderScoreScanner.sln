@@ -5,7 +5,7 @@ VisualStudioVersion = 17.9.34714.143
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeatleaderScoreScanner", "BeatleaderScoreScanner\BeatleaderScoreScanner.csproj", "{B38F9B2B-0C5D-4D31-ADC5-B3830C2CC003}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReplayDecoder", "ReplayDecoder-master\ReplayDecoder\ReplayDecoder.csproj", "{982288CF-E27F-4CBA-BF3A-02094B2580D2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReplayDecoder", "..\..\..\..\opensource\ReplayDecoder\ReplayDecoder\ReplayDecoder.csproj", "{273A50B8-3D7E-41C8-BA06-273C624988C1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +17,10 @@ Global
 		{B38F9B2B-0C5D-4D31-ADC5-B3830C2CC003}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B38F9B2B-0C5D-4D31-ADC5-B3830C2CC003}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B38F9B2B-0C5D-4D31-ADC5-B3830C2CC003}.Release|Any CPU.Build.0 = Release|Any CPU
-		{982288CF-E27F-4CBA-BF3A-02094B2580D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{982288CF-E27F-4CBA-BF3A-02094B2580D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{982288CF-E27F-4CBA-BF3A-02094B2580D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{982288CF-E27F-4CBA-BF3A-02094B2580D2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{273A50B8-3D7E-41C8-BA06-273C624988C1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{273A50B8-3D7E-41C8-BA06-273C624988C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{273A50B8-3D7E-41C8-BA06-273C624988C1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{273A50B8-3D7E-41C8-BA06-273C624988C1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

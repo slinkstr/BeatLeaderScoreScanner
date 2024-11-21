@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ReplayDecoder-master\ReplayDecoder\ReplayDecoder.csproj" />
+    <ProjectReference Include="..\..\..\..\..\opensource\ReplayDecoder\ReplayDecoder\ReplayDecoder.csproj" />
   </ItemGroup>
 
 </Project>
