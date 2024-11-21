@@ -54,7 +54,7 @@ internal class Program
 
         foreach (var note in replay.notes)
         {
-            counter++;
+            /**/counter++;
             if (note.eventType != NoteEventType.good)
             {
                 multiplierCounter.Decrease();
@@ -75,12 +75,7 @@ internal class Program
 
             totalUnderPre  += underPre * multiplierCounter.Multiplier;
             totalUnderPost += underPost * multiplierCounter.Multiplier;
-            totalScore     += note.score.value * multiplierCounter.Multiplier;
-
-            if(counter > 100)
-            {
-                // do nothing
-            }
+            /**/totalScore += note.score.value * multiplierCounter.Multiplier;
         }
 
         if (debugLog)
@@ -94,16 +89,37 @@ internal class Program
 
     private static float[] DetectSwingJitter(Replay replay)
     {
-        List<float> timestamps = new();
-
-        float angleThresholdDegrees = 45f;
-        int   scanRangeTicks        = 5;
-
-        string identifier = $"{replay.info.hmd}, {replay.info.trackingSystem}, {replay.info.gameVersion}, {replay.info.version}";
-
-        foreach (var frame in replay.frames)
+        float[] Trajectories(Frame frameFrom, Frame frameTo)
         {
-            // fucking quaternions....
+            var leftTrajectory  = Vector3.Angle(frameFrom.leftHand.position , frameTo.leftHand.position);
+            var rightTrajectory = Vector3.Angle(frameFrom.rightHand.position, frameTo.rightHand.position);
+            var headTrajectory  = Vector3.Angle(frameFrom.head.position     , frameTo.head.position);
+
+            // Console.WriteLine($"Trajectories: [ {leftTrajectory,13:F8}, {rightTrajectory,13:F8}, {headTrajectory,13:F8} ]");
+            return [ leftTrajectory, rightTrajectory, headTrajectory ];
+        }
+
+        List<float> timestamps = new();
+        string identifier = $"{replay.info.hmd}, {replay.info.trackingSystem}, {replay.info.gameVersion}, {replay.info.version}";
+        float[]? lastTrajectories = null;
+
+        // skip 1st because it has nothing to compare against
+        for (int i = 1; i < replay.frames.Count; i++)
+        {
+            float[] trajectories = Trajectories(replay.frames[i - 1], replay.frames[i]);
+
+            if (lastTrajectories != null)
+            {
+                float[] difference = [ (trajectories[0] - lastTrajectories[0]), (trajectories[1] - lastTrajectories[1]), (trajectories[2] - lastTrajectories[2]), ];
+                //Console.WriteLine($"Difference:   [ {difference[0],13:F8}, {difference[1],13:F8}, {difference[2],13:F8} ]");
+
+                if (difference.Any(diff => diff > 5))
+                {
+                    Console.WriteLine($"Found abnormal difference at frame {i} ({replay.frames[i].time:F2}s), [ {difference[0],13:F8}, {difference[1],13:F8}, {difference[2],13:F8} ]");
+                }
+            }
+
+            lastTrajectories = trajectories;
         }
 
         return timestamps.ToArray();
