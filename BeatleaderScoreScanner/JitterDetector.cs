@@ -1,141 +1,51 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml;
-using ReplayDecoder;
+﻿using ReplayDecoder;
 
 namespace BeatleaderScoreScanner
 {
     internal static class JitterDetector
     {
-        private const float MovementDirectionThreshold = 3f;
-        private const float MovementDistanceThreshold  = 0.2f;
-        private const float RotationDirectionThreshold = 45f;
+        private const int DebounceDurationTicks = 10;
 
-        public static void PrintJitter(Replay replay)
+        public static List<Frame> JitterTicks(Replay replay)
         {
-            string identifier = $"{replay.info.hmd}, {replay.info.trackingSystem}, {replay.info.gameVersion}, {replay.info.version}";
+            List<FrameComparator> comparators = new()
+            {
+                new DirectionComparator(),
+                //new DistanceComparator(),
+                //new RotationComparator(),
+            };
 
-            List<Frame> dirJitter  = MovementDirectionJitter(replay, true);
-            List<Frame> distJitter = MovementDistanceJitter (replay, true);
+            return JitterTicks(replay, comparators);
         }
 
-        public static List<Frame> MovementDirectionJitter(Replay replay, bool output = false)
+        public static List<Frame> JitterTicks(Replay replay, List<FrameComparator> comparators)
         {
             List<Frame> frames = new();
-            
-            int      frameNum       = 0;
-            Frame?   lastFrame       = null;
-            float[]? lastDirections  = null;
-            foreach (Frame frame in replay.frames.Skip(2))
+
+            Frame? lastFrame = null;
+            int skipBefore = 0;
+            // skip first few frames because position is erratic
+            for (int i = 5; i < replay.frames.Count; i++)
             {
-                if (lastFrame != null)
+                Frame frame = replay.frames[i];
+
+                if (lastFrame != null && i >= skipBefore)
                 {
-                    float[] directions =
+                    foreach (var comparator in comparators)
                     {
-                        Vector3.Angle(lastFrame.leftHand.position , frame.leftHand.position),
-                        Vector3.Angle(lastFrame.rightHand.position, frame.rightHand.position),
-                        Vector3.Angle(lastFrame.head.position     , frame.head.position),
-                    };
-
-                    if (lastDirections != null)
-                    {
-                        float[] difference =
+                        if (comparator.Compare(frame, lastFrame))
                         {
-                            directions[0] - lastDirections[0],
-                            directions[1] - lastDirections[1],
-                            directions[2] - lastDirections[2],
-                        };
-
-                        if(difference.Any((diff) => Math.Abs(diff) > MovementDirectionThreshold))
-                        {
-                            if(output)
-                            {
-                                Console.WriteLine($"Large move dir change: {frameNum} ({FormatSeconds(frame.time)}), {FloatArrayToString(difference)}");
-                            }
                             frames.Add(frame);
+                            skipBefore = i + DebounceDurationTicks;
+                            break;
                         }
                     }
-
-                    lastDirections = directions;
                 }
 
                 lastFrame = frame;
-                frameNum++;
             }
 
             return frames;
-        }
-
-        public static List<Frame> MovementDistanceJitter(Replay replay, bool output = false)
-        {
-            List<Frame> frames = new();
-
-            int      frameNum       = 0;
-            Frame?   lastFrame      = null;
-            float[]? lastDistances  = null;
-            foreach (Frame frame in replay.frames.Skip(2))
-            {
-                if (lastFrame != null)
-                {
-                    float[] distances =
-                    {
-                        Vector3.Magnitude(lastFrame.leftHand.position  - frame.leftHand.position),
-                        Vector3.Magnitude(lastFrame.rightHand.position - frame.rightHand.position),
-                        Vector3.Magnitude(lastFrame.head.position      - frame.head.position),
-                    };
-
-                    if (lastDistances != null)
-                    {
-                        float[] difference =
-                        {
-                            distances[0] - lastDistances[0],
-                            distances[1] - lastDistances[1],
-                            distances[2] - lastDistances[2],
-                        };
-
-                        if(difference.Any((diff) => Math.Abs(diff) > MovementDistanceThreshold))
-                        {
-                            if (output)
-                            {
-                                Console.WriteLine($"Large move dist change: {frameNum} ({FormatSeconds(frame.time)}), {FloatArrayToString(difference)}");
-                            }
-                            frames.Add(frame);
-                        }
-                    }
-
-                    lastDistances = distances;
-                }
-
-                lastFrame = frame;
-                frameNum++;
-            }
-
-            return frames;
-        }
-
-        public static List<Frame> RotationDirectionJitter(Replay replay)
-        {
-            List<Frame> frames = new();
-
-
-
-            return frames;
-        }
-
-        private static string FloatArrayToString(float[] values)
-        {
-            string ret = "[ ";
-
-            foreach (float f in values)
-            {
-                ret += $"{f,10:F5} ";
-            }
-
-            ret += "]";
-            return ret;
         }
 
         private static string FormatSeconds(float seconds)
@@ -144,5 +54,105 @@ namespace BeatleaderScoreScanner
             float sec = seconds % 60;
             return $"{min}:{sec:00.000}";
         }
+    }
+}
+
+abstract class FrameComparator
+{
+    protected abstract float    threshold      { get; set; }
+    protected abstract float[]? previousValues { get; set; }
+    public abstract bool Compare(Frame lastFrame, Frame frame);
+
+    protected bool MeetsThreshold(float[] values)
+    {
+        if (previousValues == null)
+        {
+            return false;
+        }
+
+        float[] difference = new float[3];
+        for (int i = 0; i < values.Length; i++)
+        {
+            difference[i] = values[i] - previousValues[i];
+        }
+
+        if (difference.Any(diff => Math.Abs(diff) > threshold))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    protected static string FloatArrayToString(float[] values)
+    {
+        string ret = "[ ";
+
+        foreach (float f in values)
+        {
+            ret += $"{f,10:F5} ";
+        }
+
+        ret += "]";
+        return ret;
+    }
+}
+
+class DirectionComparator : FrameComparator
+{
+    protected override float    threshold      { get; set; } = 3f;
+    protected override float[]? previousValues { get; set; } = null;
+
+    public override bool Compare(Frame lastFrame, Frame frame)
+    {
+        float[] values =
+        [
+            Vector3.Angle(lastFrame.leftHand.position , frame.leftHand.position),
+            Vector3.Angle(lastFrame.rightHand.position, frame.rightHand.position),
+            Vector3.Angle(lastFrame.head.position     , frame.head.position),
+        ];
+
+        bool ret = MeetsThreshold(values);
+        previousValues = values;
+        return ret;
+    }
+}
+
+class DistanceComparator : FrameComparator
+{
+    protected override float    threshold      { get; set; } = 0.2f;
+    protected override float[]? previousValues { get; set; } = null;
+
+    public override bool Compare(Frame lastFrame, Frame frame)
+    {
+        float[] values =
+        [
+            Vector3.Magnitude(lastFrame.leftHand.position  - frame.leftHand.position),
+            Vector3.Magnitude(lastFrame.rightHand.position - frame.rightHand.position),
+            Vector3.Magnitude(lastFrame.head.position      - frame.head.position),
+        ];
+
+        bool ret = MeetsThreshold(values);
+        previousValues = values;
+        return ret;
+    }
+}
+
+class RotationComparator : FrameComparator
+{
+    protected override float    threshold      { get; set; } = 45f;
+    protected override float[]? previousValues { get; set; } = null;
+
+    public override bool Compare(Frame lastFrame, Frame frame)
+    {
+        throw new NotImplementedException();
+        float[] values =
+        [
+            // todo
+        ];
+
+        bool ret = MeetsThreshold(values);
+        previousValues = values;
+        return ret;
     }
 }

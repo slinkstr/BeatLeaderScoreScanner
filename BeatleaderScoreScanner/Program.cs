@@ -1,7 +1,6 @@
-﻿using ReplayDecoder;
+﻿using BeatleaderScoreScanner;
 using Newtonsoft.Json;
-using BeatleaderScoreScanner;
-using static System.Net.WebRequestMethods;
+using ReplayDecoder;
 
 internal class Program
 {
@@ -17,19 +16,20 @@ internal class Program
                 //if (!score.fullCombo)      { continue; }
                 //if (score.accuracy < 0.95) { continue; }
 
-                // this might be interesting
-                string platform = score.platform;
 
                 var replay = await ReplayFetch.FromUrl((string)score.replay);
-                UnderswingDetector.PrintUnderswing(score, replay);
-                JitterDetector.PrintJitter(replay);
+                // these might be interesting
+                string identifier = $"{replay.info.hmd}, {replay.info.trackingSystem}, {replay.info.gameVersion}, {replay.info.version}";
+                string platform = score.platform;
 
-                //var frames = JitterDetector.MovementDirectionJitter(replay);
-                //foreach (var frame in frames)
-                //{
-                //    var url = $"https://replay.beatleader.xyz/?scoreId={score.id}&time={(int)(frame.time * 1000) - 50}&speed=2";
-                //    await Console.Out.WriteLineAsync(url);
-                //}
+                UnderswingDetector.PrintUnderswing(score, replay);
+
+                var frames = JitterDetector.JitterTicks(replay);
+                foreach (var frame in frames)
+                {
+                    var url = $"https://replay.beatleader.xyz/?scoreId={score.id}&time={(int)(frame.time * 1000) - 50}&speed=2";
+                    await Console.Out.WriteLineAsync(url);
+                }
             }
         }
     }
