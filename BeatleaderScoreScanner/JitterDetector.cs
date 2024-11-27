@@ -113,6 +113,12 @@ class DirectionComparator : FrameComparator
         ];
 
         bool ret = MeetsThreshold(values);
+
+        if (ret)
+        {
+            Console.WriteLine($"Detected at {frame.time,4:F3}: " + FloatArrayToString(values) + " " + FloatArrayToString(previousValues ?? Array.Empty<float>()));
+        }
+
         previousValues = values;
         return ret;
     }

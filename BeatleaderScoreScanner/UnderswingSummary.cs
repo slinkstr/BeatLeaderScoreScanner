@@ -2,26 +2,35 @@
 
 namespace BeatleaderScoreScanner
 {
-    internal class UnderswingDetector
+    internal class UnderswingSummary
     {
-        private const float accThreshold = 0.00f;
-        private const bool  requireFc = false;
+        public int    MaxScore     { get; set; }
+        public int    Score        { get; set; }
+        public int    FullScore    { get; set; }
+        public double Acc          { get; set; }
+        public double FullAcc      { get; set; }
+        public int    Underswing    => FullScore - Score;
+        public double UnderswingAcc => FullAcc - Acc;
 
-        public static void PrintUnderswing(dynamic score, Replay replay)
+        public UnderswingSummary(Replay replay)
         {
-            int   maxScore          = score.leaderboard.difficulty.maxScore;
-            int   underswing        = CalculateUnderswingPoints(replay);
-            float underswingPercent = underswing / (float)maxScore;
-            float fullSwingAcc      = ((int)score.baseScore + underswing) / (float)maxScore;
+            var processed = ReplayStatistic.ProcessReplay(replay);
+            if(processed.Item2 != null) { throw new Exception(processed.Item2); }
+            ScoreStatistic stats = processed.Item1!;
+            int maxScore = stats.winTracker.maxScore;
 
-            DateTime dateTime       = Program.UnixToDateTime((long)score.timeset);
-            string   printout       = $"{dateTime:yyyy-MM-dd} | {(float)score.accuracy * 100:0.00}% | Lost {underswing,6} points ({underswingPercent * 100:0.00}%), fullswing score: {fullSwingAcc * 100:0.00}% | {score.leaderboard.song.name} ({score.leaderboard.id})";
+            int underswing = CalculateUnderswingPoints(replay);
 
-            Console.WriteLine(printout);
+            MaxScore  = maxScore;
+            Score     = replay.info.score;
+            FullScore = replay.info.score + underswing;
+            Acc       = Score / (double)MaxScore;
+            FullAcc   = FullScore / (double)MaxScore;
         }
         
-        public static int CalculateUnderswingPoints(Replay replay, bool output = false)
+        public static int CalculateUnderswingPoints(Replay replay)
         {
+            /**/bool output = false;
             /**/int totalScore = 0;
             /**/int counter = 0;
             int totalUnderPre = 0;
