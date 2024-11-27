@@ -85,17 +85,18 @@ internal class Program
             {
                 throw new Exception("No data to analyze.");
             }
-
-            
         }
     }
 
     private static async Task ScanScore(dynamic score)
     {
+        // compare these against replay analysis
         var scoreDate          = UnixToDateTime((int)score.timeset);
         var scoreBase          = (int)score.baseScore;
         var scoreAcc           = (float)score.accuracy;
         var scoreMax           = (int)score.leaderboard.difficulty.maxScore;
+
+        // required for linking leaderboards/replays
         var scoreId            = (string)score.id;
         var scoreLeaderboardId = (string)score.leaderboard.id;
 
@@ -105,24 +106,10 @@ internal class Program
 
     private static async Task ScanReplay(Replay replay, string scoreId = "", string leaderboardId = "")
     {
-        UnderswingSummary underSummary = new(replay);
-        var frames = JitterDetector.JitterTicks(replay);
-
-        var replayIdentifier = $"{replay.info.hmd}, {replay.info.trackingSystem}, {replay.info.gameVersion}, {replay.info.version}";
-        var replayDate = UnixToDateTime(long.Parse(replay.info.timestamp));
-
-        string scoreSummary = $"{replayDate:yyyy-MM-dd} | " +
-                              $"{replayIdentifier} | " +
-                              $"{underSummary.Acc * 100:0.00}% | " +
-                              $"Lost {underSummary.Underswing} points ({underSummary.UnderswingAcc * 100:0.00}%), fullswing acc: {underSummary.FullAcc * 100:0.00}% | " +
-                              $"Found {frames.Count} jitters | " +
-                              $"{replay.info.songName} ({leaderboardId})";
-
-        await Console.Out.WriteLineAsync(scoreSummary);
-
-        foreach (var frame in frames)
+        var analysis = new ReplayAnalysis(replay, scoreId, leaderboardId);
+        await Console.Out.WriteLineAsync(analysis.ToString());
+        foreach (var url in analysis.JitterLinks())
         {
-            var url = $"https://replay.beatleader.xyz/?scoreId={scoreId}&time={(int)(frame.time * 1000) - 50}&speed=2";
             await Console.Out.WriteLineAsync(url);
         }
     }
@@ -154,7 +141,7 @@ internal class Program
         }
     }
 
-    internal static DateTime UnixToDateTime(long unixTimestamp)
+    private static DateTime UnixToDateTime(long unixTimestamp)
     {
         DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
         dateTime = dateTime.AddSeconds(unixTimestamp);

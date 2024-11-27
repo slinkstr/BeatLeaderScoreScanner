@@ -4,7 +4,7 @@ namespace BeatleaderScoreScanner
 {
     internal static class JitterDetector
     {
-        private const int DebounceDurationTicks = 10;
+        private const int DebounceDurationTicks = 30;
 
         public static List<Frame> JitterTicks(Replay replay)
         {
@@ -114,10 +114,10 @@ class DirectionComparator : FrameComparator
 
         bool ret = MeetsThreshold(values);
 
-        if (ret)
-        {
-            Console.WriteLine($"Detected at {frame.time,4:F3}: " + FloatArrayToString(values) + " " + FloatArrayToString(previousValues ?? Array.Empty<float>()));
-        }
+        //if (ret)
+        //{
+        //    Console.WriteLine($"Detected at {frame.time,4:F3}: " + FloatArrayToString(values) + " " + FloatArrayToString(previousValues!));
+        //}
 
         previousValues = values;
         return ret;
