@@ -41,7 +41,7 @@ internal class Program
 
                     if (scoreId != null)
                     {
-                        score = GetScore(scoreId);
+                        score = await GetScore(scoreId);
                     }
                     else if (link != null)
                     {
@@ -52,7 +52,7 @@ internal class Program
                         throw new Exception("Unable to find replay from BeatLeader URL: " + arg);
                     }
                 }
-                else if (Path.GetExtension(result.AbsoluteUri) == "bsor")
+                else if (Path.GetExtension(result.AbsoluteUri) == ".bsor")
                 {
                     replay = await ReplayFetch.FromUrl(arg);
                 }
@@ -90,15 +90,17 @@ internal class Program
 
     private static async Task ScanScore(dynamic score)
     {
+        var diff = score.leaderboard?.difficulty ?? score.difficulty ?? throw new Exception("Error parsing difficulty.");
+
         // compare these against replay analysis
         var scoreDate          = UnixToDateTime((int)score.timeset);
         var scoreBase          = (int)score.baseScore;
         var scoreAcc           = (float)score.accuracy;
-        var scoreMax           = (int)score.leaderboard.difficulty.maxScore;
+        var scoreMax           = (int)diff.maxScore;
 
         // required for linking leaderboards/replays
         var scoreId            = (string)score.id;
-        var scoreLeaderboardId = (string)score.leaderboard.id;
+        var scoreLeaderboardId = (string)score.leaderboardId;
 
         var replay = await ReplayFetch.FromUrl((string)score.replay);
         await ScanReplay(replay, scoreId, scoreLeaderboardId);
