@@ -4,11 +4,11 @@ namespace BeatleaderScoreScanner
 {
     internal class UnderswingSummary
     {
-        public int    MaxScore     { get; set; }
-        public int    Score        { get; set; }
-        public int    FullScore    { get; set; }
-        public double Acc          { get; set; }
-        public double FullAcc      { get; set; }
+        public int    MaxScore      { get; set; }
+        public int    Score         { get; set; }
+        public int    FullScore     { get; set; }
+        public double Acc           => Score / (double)MaxScore;
+        public double FullAcc       => FullScore / (double)MaxScore;
         public int    Underswing    => FullScore - Score;
         public double UnderswingAcc => FullAcc - Acc;
 
@@ -24,10 +24,8 @@ namespace BeatleaderScoreScanner
             MaxScore  = maxScore;
             Score     = replay.info.score;
             FullScore = replay.info.score + underswing;
-            Acc       = Score / (double)MaxScore;
-            FullAcc   = FullScore / (double)MaxScore;
         }
-        
+
         public static int CalculateUnderswingPoints(Replay replay)
         {
             /**/bool output = false;

@@ -47,6 +47,11 @@ namespace BeatleaderScoreScanner
             return strings;
         }
 
+        public List<string> JitterTimes()
+        {
+            return JitterFrames.Select((elm) => elm.time.ToString()).ToList();
+        }
+
         public string SongName()
         {
             return Replay.info.songName;
