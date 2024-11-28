@@ -46,8 +46,27 @@ namespace BeatleaderScoreScanner
 
                 multiplierCounter.Increase();
 
-                int underPre  = 70 - note.score.pre_score;
-                int underPost = 30 - note.score.post_score;
+                int targetPre;
+                int targetPost;
+
+                switch(note.noteParams.scoringType)
+                {
+                    case ScoringType.BurstSliderHead:
+                        targetPre  = 70;
+                        targetPost = 0;
+                        break;
+                    case ScoringType.BurstSliderElement:
+                        targetPre  = 0;
+                        targetPost = 0;
+                        break;
+                    default:
+                        targetPre  = 70;
+                        targetPost = 30;
+                        break;
+                }
+
+                int underPre  = targetPre  - note.score.pre_score;
+                int underPost = targetPost - note.score.post_score;
 
                 if ((underPre > 0 || underPost > 0) && output)
                 {
