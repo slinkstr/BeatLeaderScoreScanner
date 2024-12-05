@@ -20,6 +20,11 @@ namespace BeatleaderScoreScanner
             LeaderboardId = leaderboardId;
         }
 
+        public bool CanLink()
+        {
+            return !string.IsNullOrWhiteSpace(ScoreId);
+        }
+
         public DateTime Date()
         {
             return DateTimeOffset.FromUnixTimeSeconds(long.Parse(Replay.info.timestamp)).UtcDateTime;
@@ -33,7 +38,7 @@ namespace BeatleaderScoreScanner
 
         public List<string> JitterLinks()
         {
-            if(string.IsNullOrWhiteSpace(ScoreId) || string.IsNullOrWhiteSpace(LeaderboardId))
+            if(!CanLink())
             {
                 return [];
             }

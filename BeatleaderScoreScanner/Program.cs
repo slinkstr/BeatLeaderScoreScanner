@@ -1,11 +1,13 @@
-﻿using System;
+﻿using System.Reflection;
 using System.Web;
 using BeatleaderScoreScanner;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using ReplayDecoder;
 
 internal class Program
 {
+    // to debug inconsistencies between program and bl
     private static Dictionary<long, long> BeatleaderUnderswings = new()
     {
         { 19336178, 10186 },
@@ -124,22 +126,28 @@ internal class Program
 
     private static HttpClient _httpClient = new();
     private static AsyncReplayDecoder _decoder = new();
+    private static ProgramConfig? _config;
 
     private static async Task Main(string[] args)
     {
-        if (args.Length == 0)
+        // getopt.net
+        //try   { _config = new ProgramConfig_getoptnet(args); }
+        //catch { Environment.Exit(1); }
+
+        // commandlineparser
+        _config = ProgramConfig.ArgsToConfig(args);
+        if (_config == null)
         {
-            await Console.Out.WriteLineAsync("Pass a user ID or replay URL as an argument to analyze.");
-            Environment.Exit(0);
+            Environment.Exit(1);
         }
 
-        foreach (string arg in args)
+        foreach (string input in _config.Inputs)
         {
             IAsyncEnumerable<dynamic>? scores = null;
             dynamic?                   score  = null;
             Replay?                    replay = null;
 
-            if (Uri.TryCreate(arg, UriKind.Absolute, out var result))
+            if (Uri.TryCreate(input, UriKind.Absolute, out var result))
             {
                 bool isBeatleader       = result.Host == "beatleader.xyz"             || result.Host == "beatleader.net";
                 bool isBeatleaderReplay = result.Host == "replay.beatleader.xyz"      || result.Host == "replay.beatleader.net";
@@ -165,37 +173,37 @@ internal class Program
                     }
                     else
                     {
-                        throw new Exception("Unable to find replay from BeatLeader URL: " + arg);
+                        throw new Exception("Unable to find replay from BeatLeader URL: " + input);
                     }
                 }
                 else if (Path.GetExtension(result.AbsoluteUri) == ".bsor")
                 {
-                    replay = await ReplayFetch.FromUrl(arg);
+                    replay = await ReplayFetch.FromUrl(input);
                 }
                 else
                 {
-                    throw new Exception("Unable to find replay from URL: " + arg);
+                    throw new Exception("Unable to find replay from URL: " + input);
                 }
             }
             else
             {
-                scores = GetPlayerScores(arg);
+                scores = GetPlayerScores(input);
             }
 
             if(scores != null)
             {
                 await foreach (var s in scores)
                 {
-                    await ScanScore(s);
+                    await ScanScore(s, _config);
                 }
             }
             else if (score != null)
             {
-                await ScanScore(score);
+                await ScanScore(score, _config);
             }
             else if (replay != null)
             {
-                await ScanReplay(replay);
+                await ScanReplay(replay, _config);
             }
             else
             {
@@ -204,7 +212,7 @@ internal class Program
         }
     }
 
-    private static async Task ScanScore(dynamic score)
+    private static async Task ScanScore(dynamic score, ProgramConfig config)
     {
         var diff = score.leaderboard?.difficulty ?? score.difficulty ?? throw new Exception("Error parsing difficulty.");
 
@@ -212,47 +220,63 @@ internal class Program
         var scoreDate          = DateTimeOffset.FromUnixTimeSeconds((long)score.timeset).UtcDateTime;
         var scoreBase          = (long)score.baseScore;
         var scoreAcc           = (float)score.accuracy;
+        var scoreFc            = (bool)score.fullCombo;
         var scoreMax           = (long)diff.maxScore;
 
         // required for linking leaderboards/replays
         var scoreId            = (string)score.id;
         var scoreLeaderboardId = (string)score.leaderboardId;
 
+        if(config.RequireFC && !scoreFc)   { return; }
+        if(config.MinimumScore > scoreAcc) { return; }
+
         var replay = await ReplayFetch.FromUrl((string)score.replay);
-        await ScanReplay(replay, scoreId, scoreLeaderboardId);
+        await ScanReplay(replay, config, scoreId, scoreLeaderboardId);
     }
 
-    private static async Task ScanReplay(Replay replay, string scoreId = "", string leaderboardId = "")
+    private static async Task ScanReplay(Replay replay, ProgramConfig config, string scoreId = "", string leaderboardId = "")
     {
         var analysis = new ReplayAnalysis(replay, scoreId, leaderboardId);
-        await Console.Out.WriteLineAsync(analysis.ToString());
 
-        if(BeatleaderUnderswings.TryGetValue(long.Parse(scoreId), out long under))
+        /**/if(BeatleaderUnderswings.TryGetValue(long.Parse(scoreId), out long under))
+        /**/{
+        /**/    if(under != analysis.Underswing.Underswing)
+        /**/    {
+        /**/        await Console.Out.WriteLineAsync($"Calculated underswing did not match Beatleader. Calc: {analysis.Underswing.Underswing}, BL: {under}");
+        /**/    }
+        /**/}
+        //*/else
+        //*/{
+        //*/    await Console.Out.WriteLineAsync("Did not have BL value for " + scoreId);
+        //*/}
+
+        if (config.OutputFormat == ProgramConfig.Format.text)
         {
-            if(under != analysis.Underswing.Underswing)
+            await Console.Out.WriteLineAsync(analysis.ToString());
+            if (analysis.CanLink())
             {
-                await Console.Out.WriteLineAsync($"Calculated underswing did not match Beatleader. Calc: {analysis.Underswing.Underswing}, BL: {under}");
+                foreach (var link in analysis.JitterLinks())
+                {
+                    await Console.Out.WriteLineAsync(link);
+                }
+            }
+            else
+            {
+                foreach (var time in analysis.JitterTimes())
+                {
+                    await Console.Out.WriteLineAsync(time);
+                }
             }
         }
-        //else
-        //{
-        //    await Console.Out.WriteLineAsync("Did not have BL value for " + scoreId);
-        //}
 
-        var links = analysis.JitterLinks();
-        if (links.Count > 0)
+        if (config.OutputFormat == ProgramConfig.Format.json)
         {
-            foreach (var link in links)
+            string json = JsonConvert.SerializeObject(analysis, new JsonSerializerSettings()
             {
-                await Console.Out.WriteLineAsync(link);
-            }
-        }
-        else
-        {
-            foreach (var time in analysis.JitterTimes())
-            {
-                await Console.Out.WriteLineAsync(time);
-            }
+                ContractResolver = new IgnorePropertiesResolver([ "frames", "heights", "notes", "pauses", "walls", "fps", "head", "leftHand", "rightHand" ]),
+                
+            });
+            await Console.Out.WriteLineAsync(json);
         }
     }
 
@@ -280,6 +304,26 @@ internal class Program
             {
                 yield return score;
             }
+        }
+    }
+
+    //short helper class to ignore some properties from serialization
+    private class IgnorePropertiesResolver : DefaultContractResolver
+    {
+        private readonly HashSet<string> ignoreProps;
+        public IgnorePropertiesResolver(IEnumerable<string> propNamesToIgnore)
+        {
+            this.ignoreProps = new HashSet<string>(propNamesToIgnore);
+        }
+
+        protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
+        {
+            JsonProperty property = base.CreateProperty(member, memberSerialization);
+            if (this.ignoreProps.Contains(property.PropertyName))
+            {
+                property.ShouldSerialize = _ => false;
+            }
+            return property;
         }
     }
 }
