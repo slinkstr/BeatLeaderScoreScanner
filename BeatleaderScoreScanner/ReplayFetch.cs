@@ -26,9 +26,18 @@ namespace BeatleaderScoreScanner
             return replay ?? throw new Exception("Replay was null.");
         }
 
-        public static async Task<Replay> FromUrl(string url)
+        public static async Task<Replay> FromUri(string uri)
         {
-            Uri    uri        = new(url);
+            return await FromUri(new Uri(uri));
+        }
+
+        public static async Task<Replay> FromUri(Uri uri)
+        {
+            if (uri.IsFile)
+            {
+                return await FromFile(uri.AbsolutePath);
+            }
+
             string filename   = uri.Segments.LastOrDefault() ?? throw new Exception("Last segment was null.");
             string cachedFile = Path.Combine(_cachePath, filename);
 
@@ -37,7 +46,7 @@ namespace BeatleaderScoreScanner
                 return await FromFile(cachedFile);
             }
 
-            var response = await _httpClient.GetAsync(url);
+            var response = await _httpClient.GetAsync(uri);
             response.EnsureSuccessStatusCode();
             var stream = response.Content.ReadAsStream();
 

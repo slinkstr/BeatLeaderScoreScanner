@@ -66,6 +66,9 @@ namespace BeatleaderScoreScanner
         [Option('f', "require-fc", HelpText = "Only process replays that full combo when scanning a profile.")]
         public bool                RequireFC    { get; private set; } = false;
 
+        [Option('a', "allow-file", HelpText = "Allow reading replay files from disk.")]
+        public bool                AllowFile    { get; private set;} = false;
+
         [Option('h', "help", HelpText = "Display this help text.")]
         public bool Help { get; set; } = false;
 

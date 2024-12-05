@@ -169,7 +169,7 @@ internal class Program
                     }
                     else if (link != null)
                     {
-                        replay = await ReplayFetch.FromUrl(link);
+                        replay = await ReplayFetch.FromUri(link);
                     }
                     else
                     {
@@ -178,7 +178,12 @@ internal class Program
                 }
                 else if (Path.GetExtension(result.AbsoluteUri) == ".bsor")
                 {
-                    replay = await ReplayFetch.FromUrl(input);
+                    if(result.IsFile && !_config.AllowFile)
+                    {
+                        throw new Exception("Unable to read file, pass --allow-file to allow.");
+                    }
+
+                    replay = await ReplayFetch.FromUri(result);
                 }
                 else
                 {
@@ -230,7 +235,7 @@ internal class Program
         if(config.RequireFC && !scoreFc)   { return; }
         if(config.MinimumScore > scoreAcc) { return; }
 
-        var replay = await ReplayFetch.FromUrl((string)score.replay);
+        var replay = await ReplayFetch.FromUri((string)score.replay);
         await ScanReplay(replay, config, scoreId, scoreLeaderboardId);
     }
 
@@ -238,7 +243,7 @@ internal class Program
     {
         var analysis = new ReplayAnalysis(replay, scoreId, leaderboardId);
 
-        /**/if(BeatleaderUnderswings.TryGetValue(long.Parse(scoreId), out long under))
+        /**/if(!string.IsNullOrWhiteSpace(scoreId) && BeatleaderUnderswings.TryGetValue(long.Parse(scoreId), out long under))
         /**/{
         /**/    if(under != analysis.Underswing.Underswing)
         /**/    {
