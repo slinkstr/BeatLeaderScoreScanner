@@ -1,5 +1,4 @@
-﻿using System.Net.NetworkInformation;
-using ReplayDecoder;
+﻿using ReplayDecoder;
 
 namespace BeatleaderScoreScanner
 {

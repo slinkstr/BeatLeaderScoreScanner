@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeatleaderScoreScanner", "B
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReplayDecoder", "..\..\..\..\opensource\ReplayDecoder\ReplayDecoder\ReplayDecoder.csproj", "{273A50B8-3D7E-41C8-BA06-273C624988C1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlssHttpWrapper", "BlssHttpWrapper\BlssHttpWrapper.csproj", "{9D745553-1959-4445-A334-73A51C1AA10A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{273A50B8-3D7E-41C8-BA06-273C624988C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{273A50B8-3D7E-41C8-BA06-273C624988C1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{273A50B8-3D7E-41C8-BA06-273C624988C1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D745553-1959-4445-A334-73A51C1AA10A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D745553-1959-4445-A334-73A51C1AA10A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D745553-1959-4445-A334-73A51C1AA10A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D745553-1959-4445-A334-73A51C1AA10A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

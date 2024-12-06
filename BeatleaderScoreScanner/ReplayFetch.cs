@@ -5,7 +5,6 @@ namespace BeatleaderScoreScanner
     internal static class ReplayFetch
     {
         private static string _cachePath = Path.Combine(Path.GetTempPath(), "BeatleaderScoreScanner");
-        private static AsyncReplayDecoder _decoder = new();
         private static HttpClient _httpClient = new();
 
         static ReplayFetch()
@@ -15,7 +14,7 @@ namespace BeatleaderScoreScanner
 
         private static async Task<Replay> DecodeStream(Stream stream)
         {
-            var (replayInfo, replayTask) = await _decoder.StartDecodingStream(stream);
+            var (replayInfo, replayTask) = await new AsyncReplayDecoder().StartDecodingStream(stream);
 
             if (replayInfo == null || replayTask == null)
             {

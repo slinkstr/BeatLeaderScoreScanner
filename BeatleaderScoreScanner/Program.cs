@@ -195,29 +195,39 @@ internal class Program
                 scores = GetPlayerScores(input);
             }
 
+            string output = "";
             if(scores != null)
             {
+                List<Task<string>> scans = new();
                 await foreach (var s in scores)
                 {
-                    await ScanScore(s, _config);
+                    scans.Add(ScanScore(s, _config));
                 }
+                await Task.WhenAll(scans);
+                foreach(var scan in scans)
+                {
+                    output += scan.Result + "\n";
+                }
+                output = output.TrimEnd('\n');
             }
             else if (score != null)
             {
-                await ScanScore(score, _config);
+                output = await ScanScore(score, _config);
             }
             else if (replay != null)
             {
-                await ScanReplay(replay, _config);
+                output = await ScanReplay(replay, _config);
             }
             else
             {
                 throw new Exception("No data to analyze.");
             }
+
+            await Console.Out.WriteLineAsync(output);
         }
     }
 
-    private static async Task ScanScore(dynamic score, ProgramConfig config)
+    private static async Task<string?> ScanScore(dynamic score, ProgramConfig config)
     {
         var diff = score.leaderboard?.difficulty ?? score.difficulty ?? throw new Exception("Error parsing difficulty.");
 
@@ -232,14 +242,15 @@ internal class Program
         var scoreId            = (string)score.id;
         var scoreLeaderboardId = (string)score.leaderboardId;
 
-        if(config.RequireFC && !scoreFc)   { return; }
-        if(config.MinimumScore > scoreAcc) { return; }
+        if(config.RequireFC && !scoreFc)   { return null; }
+        if(config.MinimumScore > scoreAcc) { return null; }
 
         var replay = await ReplayFetch.FromUri((string)score.replay);
-        await ScanReplay(replay, config, scoreId, scoreLeaderboardId);
+        var output = await ScanReplay(replay, config, scoreId, scoreLeaderboardId);
+        return output;
     }
 
-    private static async Task ScanReplay(Replay replay, ProgramConfig config, string scoreId = "", string leaderboardId = "")
+    private static async Task<string> ScanReplay(Replay replay, ProgramConfig config, string scoreId = "", string leaderboardId = "")
     {
         var analysis = new ReplayAnalysis(replay, scoreId, leaderboardId);
 
@@ -255,34 +266,36 @@ internal class Program
         //*/    await Console.Out.WriteLineAsync("Did not have BL value for " + scoreId);
         //*/}
 
+        string output = "";
         if (config.OutputFormat == ProgramConfig.Format.text)
         {
-            await Console.Out.WriteLineAsync(analysis.ToString());
+            output = analysis.ToString() + "\n";
             if (analysis.CanLink())
             {
                 foreach (var link in analysis.JitterLinks())
                 {
-                    await Console.Out.WriteLineAsync(link);
+                    output += link + "\n";
                 }
             }
             else
             {
                 foreach (var time in analysis.JitterTimes())
                 {
-                    await Console.Out.WriteLineAsync(time);
+                    output += time + "\n";
                 }
             }
+            output = output.TrimEnd('\n');
         }
 
         if (config.OutputFormat == ProgramConfig.Format.json)
         {
-            string json = JsonConvert.SerializeObject(analysis, new JsonSerializerSettings()
+            output = JsonConvert.SerializeObject(analysis, new JsonSerializerSettings()
             {
                 ContractResolver = new IgnorePropertiesResolver([ "frames", "heights", "notes", "pauses", "walls", "fps", "head", "leftHand", "rightHand" ]),
-                
             });
-            await Console.Out.WriteLineAsync(json);
         }
+
+        return output;
     }
 
     private static async Task<dynamic> GetScore(string scoreId)
@@ -295,7 +308,7 @@ internal class Program
         return json;
     }
 
-    private static async IAsyncEnumerable<dynamic> GetPlayerScores(string playerId, int pages = 10, int pageSize = 10)
+    private static async IAsyncEnumerable<dynamic> GetPlayerScores(string playerId, int pages = 1, int pageSize = 10)
     {
         string endpoint = $"https://api.beatleader.xyz/player/{playerId}/scores";
         for (int currentPage = 1; currentPage <= pages; currentPage++)
@@ -324,7 +337,7 @@ internal class Program
         protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
         {
             JsonProperty property = base.CreateProperty(member, memberSerialization);
-            if (this.ignoreProps.Contains(property.PropertyName))
+            if (this.ignoreProps.Contains(property.PropertyName!))
             {
                 property.ShouldSerialize = _ => false;
             }

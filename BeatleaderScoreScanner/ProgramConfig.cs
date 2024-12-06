@@ -23,16 +23,20 @@ namespace BeatleaderScoreScanner
                     {
                         DisplayVersion();
                     }
+                    else if (errs.All(x => x is HelpRequestedError))
+                    {
+                        DisplayHelp(parserResult, false);
+                    }
                     else
                     {
-                        DisplayHelp(parserResult, errs);
+                        DisplayHelp(parserResult, true);
                     }
                 });
 
             return config;
         }
 
-        private static void DisplayHelp<T>(ParserResult<T> result, IEnumerable<Error> errs)
+        private static void DisplayHelp<T>(ParserResult<T> result, bool stderr)
         {
             var assemblyName = Assembly.GetExecutingAssembly().GetName();
 
@@ -48,7 +52,15 @@ namespace BeatleaderScoreScanner
                 h.AutoVersion = false;
                 return HelpText.DefaultParsingErrorsHandler(result, h);
             }, e => e);
-            Console.WriteLine(helpText);
+
+            if(stderr)
+            {
+                Console.Error.WriteLine(helpText);
+            }
+            else
+            {
+                Console.WriteLine(helpText);
+            }
         }
 
         private static void DisplayVersion()
@@ -84,7 +96,7 @@ namespace BeatleaderScoreScanner
             json
         }
 
-        [Usage(ApplicationAlias = "blss")]
+        [Usage(ApplicationAlias = "BeatleaderScoreScanner")]
         public static List<Example> Examples { get; private set; } =
         [
             new Example("Scan profile"    , new ProgramConfig { Inputs = new List<string>() { "<profile>" } }),
