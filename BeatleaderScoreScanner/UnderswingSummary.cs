@@ -26,7 +26,7 @@ namespace BeatleaderScoreScanner
             FullScore = replay.info.score + underswing;
         }
 
-        public static int CalculateUnderswingPoints(Replay replay)
+        private static int CalculateUnderswingPoints(Replay replay)
         {
             /**/bool output = false;
             /**/int totalScore = 0;

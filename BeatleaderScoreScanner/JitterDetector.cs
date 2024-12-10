@@ -1,5 +1,28 @@
 ﻿using ReplayDecoder;
 
+/*
+# Beat saber axes
+
+| Axis | Direction        | Reference points                                      |
+| ---- | ---------------- | ----------------------------------------------------- |
+| X    | Left/right       | 0: center, 1: almost right edge, -1: almost left edge |
+| Y    | Up/down          | 0: ground, 1: waist, 1.5: head, 2: above head         |
+| Z    | Forward/backward | 0: center, 1: back edge, -1: front edge               |
+
+# Debugging replays:
+```js
+let primaryHand = document.getElementById("rightHand");
+let primaryPosition = primaryHand.getAttribute('position');
+// primaryPosition.x += 0.5 ...
+```
+
+# Get replay cur time:
+```js
+document.getElementsByTagName("a-scene")[0].components.song.getCurrentTime();
+```
+or just skip to Frame.time with &time=<time * 1000>
+*/
+
 namespace BeatleaderScoreScanner
 {
     internal static class JitterDetector
@@ -21,9 +44,9 @@ namespace BeatleaderScoreScanner
         public static List<Frame> JitterTicks(Replay replay, List<FrameComparator> comparators)
         {
             List<Frame> frames = new();
-
             Frame? lastFrame = null;
             int skipBefore = 0;
+
             // skip first few frames because position is erratic
             for (int i = 5; i < replay.frames.Count; i++)
             {
@@ -46,13 +69,6 @@ namespace BeatleaderScoreScanner
             }
 
             return frames;
-        }
-
-        private static string FormatSeconds(float seconds)
-        {
-            int   min = (int)(seconds / 60);
-            float sec = seconds % 60;
-            return $"{min}:{sec:00.000}";
         }
     }
 }
@@ -100,7 +116,7 @@ abstract class FrameComparator
 
 class DirectionComparator : FrameComparator
 {
-    protected override float    threshold      { get; set; } = 3f;
+    protected override float    threshold      { get; set; } = 2f;
     protected override float[]? previousValues { get; set; } = null;
 
     public override bool Compare(Frame lastFrame, Frame frame)
@@ -113,12 +129,6 @@ class DirectionComparator : FrameComparator
         ];
 
         bool ret = MeetsThreshold(values);
-
-        //if (ret)
-        //{
-        //    Console.WriteLine($"Detected at {frame.time,4:F3}: " + FloatArrayToString(values) + " " + FloatArrayToString(previousValues!));
-        //}
-
         previousValues = values;
         return ret;
     }
@@ -126,7 +136,7 @@ class DirectionComparator : FrameComparator
 
 class DistanceComparator : FrameComparator
 {
-    protected override float    threshold      { get; set; } = 0.2f;
+    protected override float    threshold      { get; set; } = 0.1f;
     protected override float[]? previousValues { get; set; } = null;
 
     public override bool Compare(Frame lastFrame, Frame frame)
