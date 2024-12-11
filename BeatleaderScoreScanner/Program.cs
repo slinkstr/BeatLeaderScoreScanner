@@ -206,7 +206,10 @@ internal class Program
                 await Task.WhenAll(scans);
                 foreach(var scan in scans)
                 {
-                    output += scan.Result + "\n";
+                    if (!string.IsNullOrWhiteSpace(scan.Result))
+                    {
+                        output += scan.Result + "\n";
+                    }
                 }
                 output = output.TrimEnd('\n');
             }

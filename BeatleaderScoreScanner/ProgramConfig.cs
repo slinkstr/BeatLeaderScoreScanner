@@ -48,8 +48,8 @@ namespace BeatleaderScoreScanner
                 h.AdditionalNewLineAfterOption  = false;
                 h.AddEnumValuesToHelpText       = true;
                 h.AddNewLineBetweenHelpSections = true;
-                h.AutoHelp                      = false;
-                h.AutoVersion                   = false;
+                h.AutoHelp                      = true;
+                h.AutoVersion                   = true;
                 return HelpText.DefaultParsingErrorsHandler(result, h);
             }, e => e);
 
@@ -70,25 +70,19 @@ namespace BeatleaderScoreScanner
         }
 
         [Option('o', "output-format", Default = Format.text, HelpText = "Changes output format.")]
-        public Format              OutputFormat { get; private set; } = Format.text;
+        public Format              OutputFormat { get; private set; }
 
         [Option('s', "minimum-score", Default = 0, HelpText = "Only process replays that are above this percentage when scanning a profile. Valid values: 0.0 - 1.0")]
         public float               MinimumScore { get; private set; }
 
+        [Option('c', "count", Default = 10, HelpText = "Set the number of recent plays to fetch when scanning a profile.")]
+        public int                 Count        { get; private set; }
+
         [Option('f', "require-fc", HelpText = "Only process replays that full combo when scanning a profile.")]
         public bool                RequireFC    { get; private set; } = false;
 
-        [Option('c', "count", HelpText = "Set the number of recent plays to fetch when scanning a profile.")]
-        public int                 Count        { get; private set; } = 10;
-
         [Option('a', "allow-file", HelpText = "Allow reading replay files from disk.")]
-        public bool                AllowFile    { get; private set;} = false;
-
-        [Option('h', "help", HelpText = "Display this help text.")]
-        public bool               Help          { get; set; } = false;
-
-        [Option('v', "version", HelpText = "Display application version.")]
-        public bool               Version       { get; set; } = false;
+        public bool                AllowFile    { get; private set; } = false;
 
         [Value(0, Min = 1, MetaName = "input", HelpText = "Beatleader profile ID or URL, or replay URL.")]
         public IEnumerable<string> Inputs       { get; private set; } = [];
