@@ -1,4 +1,5 @@
-﻿using ReplayDecoder;
+﻿using System.Collections;
+using ReplayDecoder;
 
 /*
 # Beat saber axes
@@ -34,8 +35,8 @@ namespace BeatleaderScoreScanner
             List<FrameComparator> comparators = new()
             {
                 new DirectionComparator(),
+                //new DirectionComparatorPlus(),
                 //new DistanceComparator(),
-                //new RotationComparator(),
             };
 
             return JitterTicks(replay, comparators);
@@ -43,132 +44,249 @@ namespace BeatleaderScoreScanner
 
         public static List<Frame> JitterTicks(Replay replay, List<FrameComparator> comparators)
         {
-            List<Frame> frames = new();
-            Frame? lastFrame = null;
+            List<Frame> ret = new();
             int skipBefore = 0;
 
-            // skip first few frames because position is erratic
-            for (int i = 5; i < replay.frames.Count; i++)
+            // skip first frames because position is erratic
+            for (int i = 10; i < replay.frames.Count; i++)
             {
                 Frame frame = replay.frames[i];
 
-                if (lastFrame != null && i >= skipBefore)
+                foreach (var comparator in comparators)
                 {
-                    foreach (var comparator in comparators)
+                    if (i < skipBefore)
                     {
-                        if (comparator.Compare(frame, lastFrame))
-                        {
-                            frames.Add(frame);
-                            skipBefore = i + DebounceDurationTicks;
-                            break;
-                        }
+                        comparator.Reset();
+                        continue;
+                    }
+
+                    if (comparator.Compare(frame))
+                    {
+                        ret.Add(frame);
+                        skipBefore = i + DebounceDurationTicks;
+                        break;
                     }
                 }
-
-                lastFrame = frame;
             }
 
-            return frames;
+            return ret;
         }
+    }
+}
+
+class CircularBuffer<T> : IEnumerable<T>
+{
+    private List<T> _values;
+    private int _index;
+
+    public CircularBuffer(int size)
+    {
+        _values = new List<T>(size);
+        _index = 0;
+    }
+
+    public void Add(T item)
+    {
+        if (Count() < Capacity())
+        {
+            _values.Add(item);
+        }
+        else
+        {
+            _values[_index] = item;
+        }
+        _index = NextIndex();
+    }
+
+    public int Capacity()
+    {
+        return _values.Capacity;
+    }
+
+    public void Clear()
+    {
+        _values.Clear();
+        _index = 0;
+    }
+
+    public int Count()
+    {
+        return _values.Count;
+    }
+
+    // ********************************************************************************
+    // Enumerable/index
+    // ********************************************************************************
+
+    public T this[int targetIndex]
+    {
+        get => ValueAt(targetIndex);
+    }
+
+    public IEnumerator<T> GetEnumerator()
+    {
+        for(int i = 0; i < _values.Capacity; i++)
+        {
+            yield return ValueAt(i);
+        }
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
+
+    // ********************************************************************************
+    // Util
+    // ********************************************************************************
+
+    private T ValueAt(int targetIndex)
+    {
+        if (targetIndex < 0 || targetIndex > _values.Capacity)
+        {
+            throw new IndexOutOfRangeException();
+        }
+
+        var lastIndex = _index - 1;
+        var valueIndex = lastIndex - targetIndex;
+        while (valueIndex < 0)
+        {
+            valueIndex = valueIndex + _values.Capacity;
+        }
+
+        return _values.ElementAt(valueIndex);
+    }
+
+    private int NextIndex()
+    {
+        _index++;
+        if(_index >= _values.Capacity)
+        {
+            _index = 0;
+        }
+        return _index;
     }
 }
 
 abstract class FrameComparator
 {
-    protected abstract float    threshold      { get; set; }
-    protected abstract float[]? previousValues { get; set; }
-    public abstract bool Compare(Frame lastFrame, Frame frame);
+    protected abstract CircularBuffer<Frame> FrameBuffer { get; set; }
+    protected abstract bool Detected();
 
-    protected bool MeetsThreshold(float[] values)
+    public bool Compare(Frame frame)
     {
-        if (previousValues == null)
+        FrameBuffer.Add(frame);
+        if (!BufferFull()) { return false; }
+
+        return Detected();
+    }
+
+    public string DetectionAlert()
+    {
+        return $"[{this.GetType().Name}] Detected jitter at {FrameBuffer[0].time}";
+    }
+
+    public void Reset()
+    {
+        FrameBuffer.Clear();
+    }
+
+    protected bool BufferFull()
+    {
+        return FrameBuffer.Count() == FrameBuffer.Capacity();
+    }
+}
+
+class DirectionComparatorPlus : FrameComparator
+{
+    private const float _threshold = 2f;
+
+    protected override CircularBuffer<Frame> FrameBuffer { get; set; } = new(4);
+
+    protected override bool Detected()
+    {
+        Vector3[][] vecs = new Vector3[FrameBuffer.Capacity() - 1][];
+        for (int i = 0; i < FrameBuffer.Capacity() - 1; i++)
         {
-            return false;
+            var frame = FrameBuffer[i];
+            var lastFrame = FrameBuffer[i + 1];
+
+            vecs[i] =
+            [
+                frame.leftHand.position  - lastFrame.leftHand.position,
+                frame.rightHand.position - lastFrame.rightHand.position,
+                frame.head.position      - lastFrame.head.position,
+            ];
         }
 
-        float[] difference = new float[3];
-        for (int i = 0; i < values.Length; i++)
+        Console.WriteLine($"Left: {vecs[0][0].x} {vecs[0][0].y} {vecs[0][0].z}\n" +
+                          $"Right: {vecs[0][1].x} {vecs[0][1].y} {vecs[0][1].z}\n" +
+                          $"Head: {vecs[0][2].x} {vecs[0][2].y} {vecs[0][2].z}");
+
+        throw new NotImplementedException();
+    }
+}
+
+class DirectionComparator : FrameComparator
+{
+    private const float _threshold = 2f;
+
+    protected override CircularBuffer<Frame> FrameBuffer { get; set; } = new(3);
+
+    protected override bool Detected()
+    {
+        float[][] diffs = new float[FrameBuffer.Capacity() - 1][];
+        for (int i = 0; i < FrameBuffer.Capacity() - 1; i++)
         {
-            difference[i] = values[i] - previousValues[i];
+            var frame     = FrameBuffer[i];
+            var lastFrame = FrameBuffer[i + 1];
+
+            diffs[i] = [
+                Vector3.Angle(lastFrame.leftHand.position , frame.leftHand.position),
+                Vector3.Angle(lastFrame.rightHand.position, frame.rightHand.position),
+                Vector3.Angle(lastFrame.head.position     , frame.head.position),
+                ];
         }
 
-        if (difference.Any(diff => Math.Abs(diff) > threshold))
+        float[] diffdiffs = diffs[1].Zip(diffs[0], (x, y) => x - y).ToArray();
+
+        if(diffdiffs.Any(x => x > _threshold))
         {
             return true;
         }
 
         return false;
     }
-
-    protected static string FloatArrayToString(float[] values)
-    {
-        string ret = "[ ";
-
-        foreach (float f in values)
-        {
-            ret += $"{f,10:F5} ";
-        }
-
-        ret += "]";
-        return ret;
-    }
-}
-
-class DirectionComparator : FrameComparator
-{
-    protected override float    threshold      { get; set; } = 2f;
-    protected override float[]? previousValues { get; set; } = null;
-
-    public override bool Compare(Frame lastFrame, Frame frame)
-    {
-        float[] values =
-        [
-            Vector3.Angle(lastFrame.leftHand.position , frame.leftHand.position),
-            Vector3.Angle(lastFrame.rightHand.position, frame.rightHand.position),
-            Vector3.Angle(lastFrame.head.position     , frame.head.position),
-        ];
-
-        bool ret = MeetsThreshold(values);
-        previousValues = values;
-        return ret;
-    }
 }
 
 class DistanceComparator : FrameComparator
 {
-    protected override float    threshold      { get; set; } = 0.1f;
-    protected override float[]? previousValues { get; set; } = null;
+    private const float _threshold = 0.1f;
 
-    public override bool Compare(Frame lastFrame, Frame frame)
+    protected override CircularBuffer<Frame> FrameBuffer { get; set; } = new(3);
+
+    protected override bool Detected()
     {
-        float[] values =
-        [
-            Vector3.Magnitude(lastFrame.leftHand.position  - frame.leftHand.position),
-            Vector3.Magnitude(lastFrame.rightHand.position - frame.rightHand.position),
-            Vector3.Magnitude(lastFrame.head.position      - frame.head.position),
-        ];
+        float[][] diffs = new float[FrameBuffer.Capacity() - 1][];
+        for (int i = 0; i < FrameBuffer.Capacity() - 1; i++)
+        {
+            var frame = FrameBuffer[i];
+            var lastFrame = FrameBuffer[i + 1];
 
-        bool ret = MeetsThreshold(values);
-        previousValues = values;
-        return ret;
-    }
-}
+            diffs[i] = [
+                Vector3.Magnitude(lastFrame.leftHand.position  - frame.leftHand.position),
+                Vector3.Magnitude(lastFrame.rightHand.position - frame.rightHand.position),
+                Vector3.Magnitude(lastFrame.head.position      - frame.head.position),
+                ];
+        }
 
-class RotationComparator : FrameComparator
-{
-    protected override float    threshold      { get; set; } = 45f;
-    protected override float[]? previousValues { get; set; } = null;
+        float[] diffdiffs = diffs[1].Zip(diffs[0], (x, y) => x - y).ToArray();
 
-    public override bool Compare(Frame lastFrame, Frame frame)
-    {
-        throw new NotImplementedException();
-        float[] values =
-        [
-            // todo
-        ];
+        if (diffdiffs.Any(x => x > _threshold))
+        {
+            return true;
+        }
 
-        bool ret = MeetsThreshold(values);
-        previousValues = values;
-        return ret;
+        return false;
     }
 }
