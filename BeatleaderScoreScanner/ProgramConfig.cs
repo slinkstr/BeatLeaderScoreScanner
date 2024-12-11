@@ -43,13 +43,13 @@ namespace BeatleaderScoreScanner
             // such a pain in the ass to customize this
             var helpText = HelpText.AutoBuild(result, h =>
             {
-                h.Heading = $"{assemblyName.Name} {assemblyName.Version}";
-                h.Copyright = "";
-                h.AdditionalNewLineAfterOption = false;
-                h.AddEnumValuesToHelpText = true;
+                h.Heading                       = $"{assemblyName.Name} {assemblyName.Version}";
+                h.Copyright                     = "";
+                h.AdditionalNewLineAfterOption  = false;
+                h.AddEnumValuesToHelpText       = true;
                 h.AddNewLineBetweenHelpSections = true;
-                h.AutoHelp = false;
-                h.AutoVersion = false;
+                h.AutoHelp                      = false;
+                h.AutoVersion                   = false;
                 return HelpText.DefaultParsingErrorsHandler(result, h);
             }, e => e);
 
@@ -78,14 +78,17 @@ namespace BeatleaderScoreScanner
         [Option('f', "require-fc", HelpText = "Only process replays that full combo when scanning a profile.")]
         public bool                RequireFC    { get; private set; } = false;
 
+        [Option('c', "count", HelpText = "Set the number of recent plays to fetch when scanning a profile.")]
+        public int                 Count        { get; private set; } = 10;
+
         [Option('a', "allow-file", HelpText = "Allow reading replay files from disk.")]
         public bool                AllowFile    { get; private set;} = false;
 
         [Option('h', "help", HelpText = "Display this help text.")]
-        public bool Help { get; set; } = false;
+        public bool               Help          { get; set; } = false;
 
         [Option('v', "version", HelpText = "Display application version.")]
-        public bool Version { get; set; } = false;
+        public bool               Version       { get; set; } = false;
 
         [Value(0, Min = 1, MetaName = "input", HelpText = "Beatleader profile ID or URL, or replay URL.")]
         public IEnumerable<string> Inputs       { get; private set; } = [];

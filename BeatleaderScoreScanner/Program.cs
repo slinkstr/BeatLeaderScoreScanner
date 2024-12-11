@@ -155,7 +155,7 @@ internal class Program
 
                 if (isBeatleader && result.Segments[1] == "u/")
                 {
-                    scores = GetPlayerScores(result.Segments[2].TrimEnd('/'));
+                    scores = GetPlayerScores(result.Segments[2].TrimEnd('/'), _config.Count);
                 }
                 else if (isBeatleaderReplay)
                 {
@@ -192,7 +192,7 @@ internal class Program
             }
             else
             {
-                scores = GetPlayerScores(input);
+                scores = GetPlayerScores(input, _config.Count);
             }
 
             string output = "";
@@ -308,12 +308,18 @@ internal class Program
         return json;
     }
 
-    private static async IAsyncEnumerable<dynamic> GetPlayerScores(string playerId, int pages = 1, int pageSize = 10)
+    private static async IAsyncEnumerable<dynamic> GetPlayerScores(string playerId, int count)
     {
+        if (count < 1) { throw new ArgumentException("Count must be a positive integer.", nameof(count)); }
+
+        int maxPageSize = 100;
+        int pageCount = ((count - 1) / maxPageSize) + 1;
+        int cappedCount = count > maxPageSize ? maxPageSize : count;
+
         string endpoint = $"https://api.beatleader.xyz/player/{playerId}/scores";
-        for (int currentPage = 1; currentPage <= pages; currentPage++)
+        for (int currentPage = 1; currentPage <= pageCount; currentPage++)
         {
-            string args = $"?sortBy=date&page={currentPage}&count={pageSize}";
+            string args = $"?sortBy=date&page={currentPage}&count={cappedCount}";
             var response = await _httpClient.GetAsync(endpoint + args);
             response.EnsureSuccessStatusCode();
             var content = await response.Content.ReadAsStringAsync();
