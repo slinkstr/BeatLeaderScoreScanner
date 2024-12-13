@@ -66,7 +66,7 @@ namespace BeatleaderScoreScanner
             return $"{Date():yyyy-MM-dd} | " +
                    $"{Identifier()} | " +
                    $"{Underswing.Acc * 100:0.00}% | " +
-                   $"Lost {Underswing.Underswing} points ({Underswing.UnderswingAcc * 100:0.00}%), fullswing acc: {Underswing.FullAcc * 100:0.00}% | " +
+                   $"Lost {Underswing.LostScore} points ({Underswing.LostAcc * 100:0.00}%), fullswing acc: {Underswing.FullSwingAcc * 100:0.00}% | " +
                    $"Found {JitterFrames.Count} jitters | " +
                    $"{SongName()}" + (string.IsNullOrWhiteSpace(LeaderboardId) ? "" : $" ({LeaderboardId})");
         }

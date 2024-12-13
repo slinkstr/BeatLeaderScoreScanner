@@ -259,15 +259,15 @@ internal class Program
 
         /**/if(!string.IsNullOrWhiteSpace(scoreId) && BeatleaderUnderswings.TryGetValue(long.Parse(scoreId), out long under))
         /**/{
-        /**/    if(under != analysis.Underswing.Underswing)
+        /**/    if(under != analysis.Underswing.LostScore)
         /**/    {
-        /**/        await Console.Out.WriteLineAsync($"Calculated underswing did not match Beatleader. Calc: {analysis.Underswing.Underswing}, BL: {under}");
+        /**/        await Console.Out.WriteLineAsync($"{scoreId} | {replay.info.songName} underswing did not match Beatleader. Calc: {analysis.Underswing.LostScore}, BL: {under} ({under - analysis.Underswing.LostScore})");
         /**/    }
         /**/}
-        //*/else
-        //*/{
-        //*/    await Console.Out.WriteLineAsync("Did not have BL value for " + scoreId);
-        //*/}
+        /**/else
+        /**/{
+        /**/    await Console.Out.WriteLineAsync("Did not have BL value for " + scoreId);
+        /**/}
 
         string output = "";
         if (config.OutputFormat == ProgramConfig.Format.text)
