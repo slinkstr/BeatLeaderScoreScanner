@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Diagnostics;
 using ReplayDecoder;
 
 /*
@@ -8,14 +9,15 @@ using ReplayDecoder;
 | ---- | ---------------- | ----------------------------------------------------- |
 | X    | Left/right       | 0: center, 1: almost right edge, -1: almost left edge |
 | Y    | Up/down          | 0: ground, 1: waist, 1.5: head, 2: above head         |
-| Z    | Forward/backward | 0: center, 1: back edge, -1: front edge               |
+| Z    | Forward/backward | 0: center, 1: front edge, -1: back edge               |
 
 # Debugging replays:
 ```js
 let primaryHand = document.getElementById("rightHand");
-let primaryPosition = primaryHand.getAttribute('position');
+let primaryPosition = primaryHand.getAttribute("position");
 // primaryPosition.x += 0.5 ...
 ```
+Note that for some reason when you set position Z the value is inverted
 
 # Get replay cur time:
 ```js
@@ -28,14 +30,14 @@ namespace BeatleaderScoreScanner
 {
     internal static class JitterDetector
     {
-        private const int DebounceDurationTicks = 30;
+        private const int DebounceDurationTicks = 5;
 
         public static List<Frame> JitterTicks(Replay replay)
         {
             List<FrameComparator> comparators = new()
             {
-                new DirectionComparator(),
-                //new DirectionComparatorPlus(),
+                new TwoFrameDirectionComparator(),
+                //new DirectionComparator(),
                 //new DistanceComparator(),
             };
 
@@ -197,16 +199,17 @@ abstract class FrameComparator
     }
 }
 
-class DirectionComparatorPlus : FrameComparator
+class TwoFrameDirectionComparator : FrameComparator
 {
-    private const float _threshold = 2f;
+    private const float _angleThreshold     = 100f;
+    private const float _magnitudeThreshold = 0.001f;
 
     protected override CircularBuffer<Frame> FrameBuffer { get; set; } = new(4);
 
     protected override bool Detected()
     {
         Vector3[][] vecs = new Vector3[FrameBuffer.Capacity() - 1][];
-        for (int i = 0; i < FrameBuffer.Capacity() - 1; i++)
+        for (int i = 0; i < vecs.Length; i++)
         {
             var frame = FrameBuffer[i];
             var lastFrame = FrameBuffer[i + 1];
@@ -219,11 +222,28 @@ class DirectionComparatorPlus : FrameComparator
             ];
         }
 
-        Console.WriteLine($"Left: {vecs[0][0].x} {vecs[0][0].y} {vecs[0][0].z}\n" +
-                          $"Right: {vecs[0][1].x} {vecs[0][1].y} {vecs[0][1].z}\n" +
-                          $"Head: {vecs[0][2].x} {vecs[0][2].y} {vecs[0][2].z}");
+        float[][] angleDiff = new float[vecs.Length - 1][];
+        for (int i = 0; i < angleDiff.Length; i++)
+        {
+            angleDiff[i] =
+            [
+                Vector3.Angle(vecs[i][0], vecs[i + 1][0]),
+                Vector3.Angle(vecs[i][1], vecs[i + 1][1]),
+                Vector3.Angle(vecs[i][2], vecs[i + 1][2]),
+            ];
+        }
 
-        throw new NotImplementedException();
+        for(int i = 0; i < 3; i++)
+        {
+            if (angleDiff[1][i] < _angleThreshold)             { continue; }
+            if (angleDiff[0][i] < _angleThreshold)             { continue; }
+            // First (oldest) tick is usually the most violent (highest magnitude)
+            if (vecs[2][i].sqrMagnitude < _magnitudeThreshold) { continue; }
+
+            return true;
+        }
+
+        return false;
     }
 }
 
