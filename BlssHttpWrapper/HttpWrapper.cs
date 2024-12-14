@@ -45,13 +45,6 @@ namespace HttpWrapper
                 // Log
                 Console.WriteLine($"{request.HttpMethod} | {request.Url} | {request.UserHostName} | {request.UserAgent}");
 
-                // Process
-                if(request.Url?.AbsolutePath != "/")
-                {
-                    await BadRequest(response);
-                    continue;
-                }
-
                 string? replayInput = request.QueryString.Get("input");
                 if(string.IsNullOrWhiteSpace(replayInput))
                 {
@@ -89,7 +82,7 @@ namespace HttpWrapper
                 blss.StandardOutput.Close();
                 blss.StandardError .Close();
 
-                if (blss.ExitCode != 0 || !string.IsNullOrWhiteSpace(blssErr))
+                if (!string.IsNullOrWhiteSpace(blssErr))
                 {
                     await BadRequest(response);
                     continue;
