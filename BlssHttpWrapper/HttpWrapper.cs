@@ -120,7 +120,9 @@ namespace HttpWrapper
                 return "";
             }
 
-            return input.Replace("\"", "")
+            return input.Split(" ")[0]
+                        .TrimStart('-')
+                        .Replace("\"", "")
                         .Replace("'", "")
                         .Replace("$", "")
                         .Replace("`", "")
