@@ -7,6 +7,7 @@ using ReplayDecoder;
 
 internal class Program
 {
+#if DEBUG
     // to debug inconsistencies between program and bl
     private static Dictionary<long, long> BeatleaderUnderswings = new()
     {
@@ -146,6 +147,7 @@ internal class Program
 
     })();
     */
+#endif
 
     private static HttpClient _httpClient = new();
     private static AsyncReplayDecoder _decoder = new();
@@ -273,19 +275,25 @@ internal class Program
 
     private static async Task<string> ScanReplay(Replay replay, ProgramConfig config, string scoreId = "", string leaderboardId = "")
     {
-        var analysis = new ReplayAnalysis(replay, scoreId, leaderboardId);
-
-        /**/if(!string.IsNullOrWhiteSpace(scoreId) && BeatleaderUnderswings.TryGetValue(long.Parse(scoreId), out long under))
-        /**/{
-        /**/    if(under != analysis.Underswing.LostScore)
-        /**/    {
-        /**/        await Console.Out.WriteLineAsync($"{scoreId} | {replay.info.songName} underswing did not match Beatleader. Calc: {analysis.Underswing.LostScore}, BL: {under} ({under - analysis.Underswing.LostScore})");
-        /**/    }
-        /**/}
-        /**/else
-        /**/{
-        /**/    await Console.Out.WriteLineAsync("Did not have BL value for " + scoreId);
-        /**/}
+        ReplayAnalysis? analysis = null;
+        await Task.Run(() => { analysis = new ReplayAnalysis(replay, scoreId, leaderboardId); });
+        if(analysis == null)
+        {
+            throw new Exception("Replay analysis was null.");
+        }
+#if DEBUG
+        if(!string.IsNullOrWhiteSpace(scoreId) && BeatleaderUnderswings.TryGetValue(long.Parse(scoreId), out long under))
+        {
+            if(under != analysis.Underswing.LostScore)
+            {
+                await Console.Out.WriteLineAsync($"{scoreId} | {replay.info.songName} underswing did not match Beatleader. Calc: {analysis.Underswing.LostScore}, BL: {under} ({under - analysis.Underswing.LostScore})");
+            }
+        }
+        else
+        {
+            await Console.Out.WriteLineAsync("Did not have BL value for " + scoreId);
+        }
+#endif
 
         string output = "";
         if (config.OutputFormat == ProgramConfig.Format.text)
