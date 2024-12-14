@@ -168,9 +168,9 @@ internal class Program
 
         foreach (string input in _config.Inputs)
         {
-            IAsyncEnumerable<dynamic>? scores = null;
-            dynamic?                   score  = null;
-            Replay?                    replay = null;
+            IEnumerable<dynamic>? scores = null;
+            dynamic?              score  = null;
+            Replay?               replay = null;
 
             if (Uri.TryCreate(input, UriKind.Absolute, out var result))
             {
@@ -180,7 +180,7 @@ internal class Program
 
                 if (isBeatleader && result.Segments[1] == "u/")
                 {
-                    scores = GetPlayerScores(result.Segments[2].TrimEnd('/'), _config.Count);
+                    scores = await GetPlayerScores(result.Segments[2].TrimEnd('/'), _config.Count, _config.Page);
                 }
                 else if (isBeatleaderReplay)
                 {
@@ -217,14 +217,14 @@ internal class Program
             }
             else
             {
-                scores = GetPlayerScores(input, _config.Count);
+                scores = await GetPlayerScores(input, _config.Count, _config.Page);
             }
 
             string output = "";
             if(scores != null)
             {
                 List<Task<string>> scans = new();
-                await foreach (var s in scores)
+                foreach (var s in scores)
                 {
                     scans.Add(ScanScore(s, _config));
                 }
@@ -337,27 +337,19 @@ internal class Program
         return json;
     }
 
-    private static async IAsyncEnumerable<dynamic> GetPlayerScores(string playerId, int count)
+    private static async Task<IEnumerable<dynamic>> GetPlayerScores(string playerId, int count, int page)
     {
-        if (count < 1) { throw new ArgumentException("Count must be a positive integer.", nameof(count)); }
-
-        int maxPageSize = 100;
-        int pageCount = ((count - 1) / maxPageSize) + 1;
-        int cappedCount = count > maxPageSize ? maxPageSize : count;
+        if (count < 1)   { throw new ArgumentException("Count must be a positive integer.", nameof(count)); }
+        if (count > 100) { throw new ArgumentException("Count can't be greater than 100." , nameof(count)); }
 
         string endpoint = $"https://api.beatleader.xyz/player/{playerId}/scores";
-        for (int currentPage = 1; currentPage <= pageCount; currentPage++)
-        {
-            string args = $"?sortBy=date&page={currentPage}&count={cappedCount}";
-            var response = await _httpClient.GetAsync(endpoint + args);
-            response.EnsureSuccessStatusCode();
-            var content = await response.Content.ReadAsStringAsync();
-            dynamic json = JsonConvert.DeserializeObject(content) ?? throw new Exception("Unable to parse JSON");
-            foreach (var score in json.data)
-            {
-                yield return score;
-            }
-        }
+
+        string args = $"?sortBy=date&page={page}&count={count}";
+        var response = await _httpClient.GetAsync(endpoint + args);
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync();
+        dynamic json = JsonConvert.DeserializeObject(content) ?? throw new Exception("Unable to parse JSON");
+        return json.data;
     }
 
     //short helper class to ignore some properties from serialization

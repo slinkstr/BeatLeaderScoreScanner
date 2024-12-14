@@ -53,8 +53,14 @@ namespace HttpWrapper
                 }
 
                 string? replayInput = request.QueryString.Get("input");
-
                 if(string.IsNullOrWhiteSpace(replayInput))
+                {
+                    await BadRequest(response);
+                    continue;
+                }
+
+                int page = 1;
+                if(!int.TryParse(request.QueryString.Get("page"), out page))
                 {
                     await BadRequest(response);
                     continue;
@@ -63,7 +69,7 @@ namespace HttpWrapper
                 var blss = Process.Start(new ProcessStartInfo()
                 {
                     FileName = blssBinary,
-                    Arguments = "--output-format json " + SanitizeForCommandLine(replayInput),
+                    Arguments = $"--output-format json --page {page} {SanitizeForCommandLine(replayInput)}",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                 });

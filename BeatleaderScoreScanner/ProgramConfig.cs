@@ -78,6 +78,9 @@ namespace BeatleaderScoreScanner
         [Option('c', "count", Default = 10, HelpText = "Set the number of recent plays to fetch when scanning a profile.")]
         public int                 Count        { get; private set; }
 
+        [Option('p', "page", Default = 1, HelpText = "Set the page to skip to when scanning a profile.")]
+        public int                 Page         { get; private set; }
+
         [Option('f', "require-fc", HelpText = "Only process replays that full combo when scanning a profile.")]
         public bool                RequireFC    { get; private set; } = false;
 
