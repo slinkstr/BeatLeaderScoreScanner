@@ -45,7 +45,7 @@ namespace BeatleaderScoreScanner
             List<string> strings = [];
             foreach (Frame frame in JitterFrames)
             {
-                var url = $"https://replay.beatleader.xyz/?scoreId={ScoreId}&time={(int)(frame.time * 1000) - 50}&speed=2";
+                var url = $"https://replay.beatleader.xyz/?scoreId={ScoreId}&speed=2&time={(int)(frame.time * 1000) - 50}";
                 strings.Add(url);
             }
             return strings;

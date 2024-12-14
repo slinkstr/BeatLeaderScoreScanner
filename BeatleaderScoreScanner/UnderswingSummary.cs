@@ -35,7 +35,7 @@ namespace BeatleaderScoreScanner
             int totalUnderPost = 0;
             MultiplierCounter multiplierCounter = new();
 
-            foreach (var note in replay.notes)
+            foreach (var note in replay.notes.OrderBy(x => x.eventTime)) // redundant sort just in case
             {
                 /**/counter++;
                 if (note.eventType != NoteEventType.good)
