@@ -60,19 +60,24 @@ namespace HttpWrapper
                 }
 
                 int page = 1;
-                if(!int.TryParse(request.QueryString.Get("page"), out page))
+                string? pageInput = request.QueryString.Get("page");
+                if (!string.IsNullOrWhiteSpace(pageInput))
                 {
-                    await BadRequest(response);
-                    continue;
+                    if (!int.TryParse(pageInput, out page))
+                    {
+                        await BadRequest(response);
+                        continue;
+                    }
                 }
 
-                var blss = Process.Start(new ProcessStartInfo()
+                var blssStartinfo = new ProcessStartInfo()
                 {
                     FileName = blssBinary,
                     Arguments = $"--output-format json --page {page} {SanitizeForCommandLine(replayInput)}",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
-                });
+                };
+                var blss = Process.Start(blssStartinfo);
 
                 List<string> outputLines = new();
                 string? line;
@@ -80,13 +85,11 @@ namespace HttpWrapper
                 {
                     outputLines.Add(line);
                 }
-
                 var blssErr = await blss.StandardError.ReadToEndAsync();
-
                 blss.StandardOutput.Close();
                 blss.StandardError .Close();
 
-                if (!string.IsNullOrWhiteSpace(blssErr))
+                if (blss.ExitCode != 0 || !string.IsNullOrWhiteSpace(blssErr))
                 {
                     await BadRequest(response);
                     continue;

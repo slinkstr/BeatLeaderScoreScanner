@@ -343,10 +343,15 @@ internal class Program
         if (count > 100) { throw new ArgumentException("Count can't be greater than 100." , nameof(count)); }
 
         string endpoint = $"https://api.beatleader.xyz/player/{playerId}/scores";
-
         string args = $"?sortBy=date&page={page}&count={count}";
+
         var response = await _httpClient.GetAsync(endpoint + args);
+        if(response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return [];
+        }
         response.EnsureSuccessStatusCode();
+
         var content = await response.Content.ReadAsStringAsync();
         dynamic json = JsonConvert.DeserializeObject(content) ?? throw new Exception("Unable to parse JSON");
         return json.data;
