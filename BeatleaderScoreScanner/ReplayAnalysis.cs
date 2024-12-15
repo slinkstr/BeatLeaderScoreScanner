@@ -4,11 +4,12 @@ namespace BeatleaderScoreScanner
 {
     internal class ReplayAnalysis
     {
-        public UnderswingSummary Underswing { get; private set; }
-        public List<Frame> JitterFrames { get; private set; }
-        public Replay Replay { get; private set; }
-        public string ScoreId { get; private set; }
-        public string LeaderboardId { get; private set; }
+        public UnderswingSummary Underswing       { get; private set; }
+        public List<Frame>       JitterFrames     { get; private set; }
+        public Replay            Replay           { get; private set; }
+        public string            ScoreId          { get; private set; }
+        public string            LeaderboardId    { get; private set; }
+        public float             JittersPerMinute => JitterFrames.Count / (Replay.frames.Last().time / 60f);
 
         public ReplayAnalysis(Replay replay, string scoreId, string leaderboardId)
         {
@@ -67,7 +68,7 @@ namespace BeatleaderScoreScanner
                    $"{Identifier()} | " +
                    $"{Underswing.Acc * 100:0.00}% | " +
                    $"Lost {Underswing.LostScore} points ({Underswing.LostAcc * 100:0.00}%), fullswing acc: {Underswing.FullSwingAcc * 100:0.00}% | " +
-                   $"Found {JitterFrames.Count} jitters | " +
+                   $"Found {JitterFrames.Count} jitters ({JittersPerMinute:F2}/min) | " +
                    $"{SongName()}" + (string.IsNullOrWhiteSpace(LeaderboardId) ? "" : $" ({LeaderboardId})");
         }
     }

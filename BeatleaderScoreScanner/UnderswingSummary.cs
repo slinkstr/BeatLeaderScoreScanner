@@ -7,10 +7,10 @@ namespace BeatleaderScoreScanner
         public int    MaxScore       { get; set; }
         public int    Score          { get; set; }
         public int    FullSwingScore { get; set; }
-        public double Acc           => Score / (double)MaxScore;
-        public double FullSwingAcc  => FullSwingScore / (double)MaxScore;
-        public int    LostScore     => FullSwingScore - Score;
-        public double LostAcc       => FullSwingAcc - Acc;
+        public double Acc            => Score / (double)MaxScore;
+        public double FullSwingAcc   => FullSwingScore / (double)MaxScore;
+        public int    LostScore      => FullSwingScore - Score;
+        public double LostAcc        => FullSwingAcc - Acc;
 
         public UnderswingSummary(Replay replay)
         {
