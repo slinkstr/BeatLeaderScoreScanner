@@ -92,6 +92,9 @@ namespace HttpWrapper
                 response.ContentType = "application/json";
                 response.ContentEncoding = Encoding.UTF8;
                 response.ContentLength64 = data.LongLength;
+#if DEBUG
+                response.Headers.Add("Access-Control-Allow-Origin", "*");
+#endif
 
                 await response.OutputStream.WriteAsync(data, 0, data.Length);
                 response.Close();
