@@ -1,4 +1,6 @@
-﻿using ReplayDecoder;
+﻿using System.Security.Cryptography;
+using System.Text;
+using ReplayDecoder;
 
 namespace BeatleaderScoreScanner
 {
@@ -10,6 +12,46 @@ namespace BeatleaderScoreScanner
         static ReplayFetch()
         {
             Directory.CreateDirectory(_cachePath);
+        }
+
+        public static async Task<Replay> FromUri(string uri)
+        {
+            return await FromUri(new Uri(uri));
+        }
+
+        public static async Task<Replay> FromUri(Uri uri)
+        {
+            if (uri.IsFile)
+            {
+                return await FromFile(uri.AbsolutePath);
+            }
+
+            string filename   = GetCachedFilename(uri);
+            string cachedFile = Path.Combine(_cachePath, filename);
+
+            if (File.Exists(cachedFile))
+            {
+                return await FromFile(cachedFile);
+            }
+
+            var response = await _httpClient.GetAsync(uri);
+            response.EnsureSuccessStatusCode();
+            var stream = response.Content.ReadAsStream();
+            Replay replay = await DecodeStream(stream);
+            stream.Seek(0, SeekOrigin.Begin);
+            using (var fileStream = File.Create(cachedFile))
+            {
+                await stream.CopyToAsync(fileStream);
+            }
+            return replay;
+        }
+
+        public static async Task<Replay> FromFile(string path)
+        {
+            using (var stream = File.OpenRead(path))
+            {
+                return await DecodeStream(stream);
+            }
         }
 
         private static async Task<Replay> DecodeStream(Stream stream)
@@ -25,45 +67,17 @@ namespace BeatleaderScoreScanner
             return replay ?? throw new Exception("Replay was null.");
         }
 
-        public static async Task<Replay> FromUri(string uri)
+        private static string GetCachedFilename(Uri uri)
         {
-            return await FromUri(new Uri(uri));
-        }
-
-        public static async Task<Replay> FromUri(Uri uri)
-        {
-            if (uri.IsFile)
+            byte[] data = Encoding.UTF8.GetBytes(uri.AbsoluteUri);
+            byte[] hash;
+            using (MD5 md5 = MD5.Create())
             {
-                return await FromFile(uri.AbsolutePath);
+                md5.Initialize();
+                md5.ComputeHash(Encoding.UTF8.GetBytes(uri.AbsoluteUri));
+                hash = md5.Hash ?? throw new Exception("Unable to calculate hash.");
             }
-
-            string filename   = uri.Segments.LastOrDefault() ?? throw new Exception("Last segment was null.");
-            string cachedFile = Path.Combine(_cachePath, filename);
-
-            if (File.Exists(cachedFile))
-            {
-                return await FromFile(cachedFile);
-            }
-
-            var response = await _httpClient.GetAsync(uri);
-            response.EnsureSuccessStatusCode();
-            var stream = response.Content.ReadAsStream();
-
-            using (var fileStream = File.Create(cachedFile))
-            {
-                await stream.CopyToAsync(fileStream);
-            }
-            stream.Seek(0, SeekOrigin.Begin);
-
-            return await DecodeStream(stream);
-        }
-
-        public static async Task<Replay> FromFile(string path)
-        {
-            using (var stream = File.OpenRead(path))
-            {
-                return await DecodeStream(stream);
-            }
+            return Convert.ToHexString(hash) + ".bsor";
         }
     }
 }
