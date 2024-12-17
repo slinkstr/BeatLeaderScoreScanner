@@ -4,25 +4,34 @@ namespace BeatleaderScoreScanner
 {
     internal class ReplayAnalysis
     {
-        public UnderswingSummary Underswing       { get; private set; }
         public List<Frame>       JitterFrames     { get; private set; }
-        public Replay            Replay           { get; private set; }
-        public string            ScoreId          { get; private set; }
+        public List<string>      JitterLinks      { get; private set; }
+        public float             JittersPerMinute { get; private set; }
         public string            LeaderboardId    { get; private set; }
-        public float             JittersPerMinute => JitterFrames.Count / (Replay.frames.Last().time / 60f);
+        public Replay            Replay           { get; private set; }
+        public Uri               ReplayUrl        { get; private set; }
+        public string?           ScoreId          { get; private set; }
+        public UnderswingSummary Underswing       { get; private set; }
 
-        public ReplayAnalysis(Replay replay, string scoreId, string leaderboardId)
+        public ReplayAnalysis(Replay replay, Uri replayUrl, string leaderboardId)
         {
-            Replay        = replay;
-            Underswing    = new UnderswingSummary(replay);
             JitterFrames  = JitterDetector.JitterTicks(replay);
-            ScoreId       = scoreId;
             LeaderboardId = leaderboardId;
-        }
+            Replay        = replay;
+            ReplayUrl     = replayUrl;
+            Underswing    = new UnderswingSummary(replay);
 
-        public bool CanLink()
-        {
-            return !string.IsNullOrWhiteSpace(ScoreId);
+            JittersPerMinute = JitterFrames.Count / (Replay.frames.Last().time / 60f);
+
+            List<string> strings = [];
+            foreach (Frame frame in JitterFrames)
+            {
+                var url = $"https://replay.beatleader.xyz/?link={ReplayUrl}&speed=2&time={(int)(frame.time * 1000) - 50}";
+                strings.Add(url);
+            }
+            JitterLinks = strings;
+
+            ScoreId = ReplayUrl.Host != "cdn.replays.beatleader.xyz" ? null : ReplayUrl.Segments.LastOrDefault()?.Split("-")?[0];
         }
 
         public DateTime Date()
@@ -36,32 +45,6 @@ namespace BeatleaderScoreScanner
             return $"{string.Join(' ', hmdSplit)}, {Replay.info.trackingSystem}, {Replay.info.gameVersion}, {Replay.info.version}";
         }
 
-        public List<string> JitterLinks()
-        {
-            if(!CanLink())
-            {
-                return [];
-            }
-
-            List<string> strings = [];
-            foreach (Frame frame in JitterFrames)
-            {
-                var url = $"https://replay.beatleader.xyz/?scoreId={ScoreId}&speed=2&time={(int)(frame.time * 1000) - 50}";
-                strings.Add(url);
-            }
-            return strings;
-        }
-
-        public List<string> JitterTimes()
-        {
-            return JitterFrames.Select((elm) => elm.time.ToString()).ToList();
-        }
-
-        public string SongName()
-        {
-            return Replay.info.songName;
-        }
-
         public override string ToString()
         {
             return $"{Date():yyyy-MM-dd} | " +
@@ -69,7 +52,7 @@ namespace BeatleaderScoreScanner
                    $"{Underswing.Acc * 100:0.00}% | " +
                    $"Lost {Underswing.LostScore} points ({Underswing.LostAcc * 100:0.00}%), fullswing acc: {Underswing.FullSwingAcc * 100:0.00}% | " +
                    $"Found {JitterFrames.Count} jitters ({JittersPerMinute:F2}/min) | " +
-                   $"{SongName()}" + (string.IsNullOrWhiteSpace(LeaderboardId) ? "" : $" ({LeaderboardId})");
+                   $"{Replay.info.songName}" + (string.IsNullOrWhiteSpace(LeaderboardId) ? "" : $" ({LeaderboardId})");
         }
     }
 }

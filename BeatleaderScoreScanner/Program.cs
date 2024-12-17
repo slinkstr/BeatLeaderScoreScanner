@@ -155,11 +155,6 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        // getopt.net
-        //try   { _config = new ProgramConfig_getoptnet(args); }
-        //catch { Environment.Exit(1); }
-
-        // commandlineparser
         _config = ProgramConfig.ArgsToConfig(args);
         if (_config == null)
         {
@@ -168,15 +163,17 @@ internal class Program
 
         foreach (string input in _config.Inputs)
         {
-            IEnumerable<dynamic>? scores = null;
-            dynamic?              score  = null;
-            Replay?               replay = null;
+            IEnumerable<dynamic>? scores    = null;
+            dynamic?              score     = null;
+            Replay?               replay    = null;
+            Uri?                  replayUrl = null;
 
             if (Uri.TryCreate(input, UriKind.Absolute, out var result))
             {
                 bool isBeatleader       = result.Host == "beatleader.xyz"             || result.Host == "beatleader.net";
                 bool isBeatleaderReplay = result.Host == "replay.beatleader.xyz"      || result.Host == "replay.beatleader.net";
-                bool isBeatleaderCdn    = result.Host == "cdn.replays.beatleader.xyz" || result.Host == "cdn.replays.beatleader.net";
+
+                if (result.IsFile && !_config.AllowFile) { throw new Exception("Unable to read file, pass --allow-file to allow."); }
 
                 if (isBeatleader && result.Segments[1] == "u/")
                 {
@@ -195,24 +192,17 @@ internal class Program
                     else if (link != null)
                     {
                         replay = await ReplayFetch.FromUri(link);
+                        replayUrl = new Uri(link);
                     }
                     else
                     {
                         throw new Exception("Unable to find replay from BeatLeader URL: " + input);
                     }
                 }
-                else if (Path.GetExtension(result.AbsoluteUri) == ".bsor")
-                {
-                    if(result.IsFile && !_config.AllowFile)
-                    {
-                        throw new Exception("Unable to read file, pass --allow-file to allow.");
-                    }
-
-                    replay = await ReplayFetch.FromUri(result);
-                }
                 else
                 {
-                    throw new Exception("Unable to find replay from URL: " + input);
+                    replay = await ReplayFetch.FromUri(result);
+                    replayUrl = result;
                 }
             }
             else
@@ -244,7 +234,7 @@ internal class Program
             }
             else if (replay != null)
             {
-                output = await ScanReplay(replay, _config);
+                output = await ScanReplay(replay, _config, replayUrl!);
             }
             else
             {
@@ -260,7 +250,7 @@ internal class Program
         var diff = score.leaderboard?.difficulty ?? score.difficulty ?? throw new Exception("Error parsing difficulty.");
 
         // required for linking leaderboards/replays
-        var scoreId            = (string)score.id;
+        var scoreReplayUrl     = new Uri((string)score.replay);
         var scoreLeaderboardId = (string)score.leaderboardId;
 
         var scoreAcc           = (float)score.accuracy;
@@ -269,54 +259,42 @@ internal class Program
         if(config.MinimumScore > scoreAcc) { return null; }
 
         var replay = await ReplayFetch.FromUri((string)score.replay);
-        var output = await ScanReplay(replay, config, scoreId, scoreLeaderboardId);
+        var output = await ScanReplay(replay, config, scoreReplayUrl, scoreLeaderboardId);
         return output;
     }
 
-    private static async Task<string> ScanReplay(Replay replay, ProgramConfig config, string scoreId = "", string leaderboardId = "")
+    private static async Task<string> ScanReplay(Replay replay, ProgramConfig config, Uri replayUrl, string leaderboardId = "")
     {
         ReplayAnalysis? analysis = null;
-        await Task.Run(() => { analysis = new ReplayAnalysis(replay, scoreId, leaderboardId); });
+        await Task.Run(() => { analysis = new ReplayAnalysis(replay, replayUrl, leaderboardId); });
         if(analysis == null)
         {
             throw new Exception("Replay analysis was null.");
         }
 #if DEBUG
-        if(!string.IsNullOrWhiteSpace(scoreId) && BeatleaderUnderswings.TryGetValue(long.Parse(scoreId), out long under))
+        if (!string.IsNullOrWhiteSpace(analysis.ScoreId) && BeatleaderUnderswings.TryGetValue(long.Parse(analysis.ScoreId), out long under))
         {
             if(under != analysis.Underswing.LostScore)
             {
-                await Console.Out.WriteLineAsync($"{scoreId} | {replay.info.songName} underswing did not match Beatleader. Calc: {analysis.Underswing.LostScore}, BL: {under} ({under - analysis.Underswing.LostScore})");
+                await Console.Out.WriteLineAsync($"{analysis.ScoreId} | {replay.info.songName} underswing did not match Beatleader. Calc: {analysis.Underswing.LostScore}, BL: {under} ({under - analysis.Underswing.LostScore})");
             }
         }
         else
         {
-            await Console.Out.WriteLineAsync("Did not have BL value for " + scoreId);
+            await Console.Out.WriteLineAsync("Did not have BL value for " + analysis.Replay.info.songName);
         }
 #endif
-
         string output = "";
         if (config.OutputFormat == ProgramConfig.Format.text)
         {
             output = analysis.ToString() + "\n";
-            if (analysis.CanLink())
+            foreach (var time in analysis.JitterLinks)
             {
-                foreach (var link in analysis.JitterLinks())
-                {
-                    output += link + "\n";
-                }
-            }
-            else
-            {
-                foreach (var time in analysis.JitterTimes())
-                {
-                    output += time + "\n";
-                }
+                output += time + "\n";
             }
             output = output.TrimEnd('\n');
         }
-
-        if (config.OutputFormat == ProgramConfig.Format.json)
+        else if (config.OutputFormat == ProgramConfig.Format.json)
         {
             output = JsonConvert.SerializeObject(analysis, new JsonSerializerSettings()
             {
