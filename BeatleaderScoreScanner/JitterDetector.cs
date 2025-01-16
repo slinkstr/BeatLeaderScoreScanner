@@ -1,5 +1,4 @@
 ﻿using System.Collections;
-using System.Diagnostics;
 using ReplayDecoder;
 
 /*
@@ -30,9 +29,10 @@ namespace BeatleaderScoreScanner
 {
     internal static class JitterDetector
     {
-        private const int DebounceDurationTicks = 5;
+        private const int   DebounceDurationTicks = 5;
+        private const float NoteWindow = 0.1f;
 
-        public static List<Frame> JitterTicks(Replay replay)
+        public static List<Frame> JitterTicks(Replay replay, bool requireScoreLoss)
         {
             List<FrameComparator> comparators = new()
             {
@@ -41,31 +41,83 @@ namespace BeatleaderScoreScanner
                 //new DistanceComparator(),
             };
 
-            return JitterTicks(replay, comparators);
+            return JitterTicks(replay, requireScoreLoss, comparators);
         }
 
-        public static List<Frame> JitterTicks(Replay replay, List<FrameComparator> comparators)
+        public static List<Frame> JitterTicks(Replay replay, bool requireScoreLoss, List<FrameComparator> comparators)
         {
             List<Frame> ret = new();
-            int skipBefore = 0;
+            int debounceSkipTo = 0;
+
+            List<NoteEvent> underswingNotes = replay.notes.Where(x =>
+            {
+                if (x.eventType != NoteEventType.good)
+                {
+                    return false;
+                }
+
+                if (x.noteCutInfo.afterCutRating < 1 || x.noteCutInfo.beforeCutRating < 1)
+                {
+                    return true;
+                }
+                return false;
+            }).ToList();
+
+            int curNoteIndex = 0;
 
             // skip first frames because position is erratic
             for (int i = 10; i < replay.frames.Count; i++)
             {
                 Frame frame = replay.frames[i];
 
-                foreach (var comparator in comparators)
+                if (i < debounceSkipTo)
                 {
-                    if (i < skipBefore)
+                    comparators.ForEach(c => c.Reset());
+                    continue;
+                }
+
+                if (requireScoreLoss)
+                {
+                    if (curNoteIndex >= underswingNotes.Count)
                     {
-                        comparator.Reset();
+                        return ret;
+                    }
+
+                    NoteEvent note = underswingNotes[curNoteIndex];
+
+                    // skip jitters that are too far away from the note
+                    if (note.eventTime + NoteWindow < frame.time)
+                    {
+                        if (curNoteIndex == underswingNotes.Count - 1)
+                        {
+                            return ret;
+                        }
+
+                        note = underswingNotes[++curNoteIndex];
+                    }
+                    if (note.eventTime - NoteWindow > frame.time)
+                    {
+                        comparators.ForEach(c => c.Reset());
                         continue;
                     }
 
+                    // skip jitters before note if preswing is OK, vice versa for postswing
+                    if (note.eventTime > frame.time && note.noteCutInfo.beforeCutRating >= 1)
+                    {
+                        continue;
+                    }
+                    if (note.eventTime < frame.time && note.noteCutInfo.afterCutRating >= 1)
+                    {
+                        continue;
+                    }
+                }
+
+                foreach (var comparator in comparators)
+                {
                     if (comparator.Compare(frame))
                     {
                         ret.Add(frame);
-                        skipBefore = i + DebounceDurationTicks;
+                        debounceSkipTo = i + DebounceDurationTicks;
                         break;
                     }
                 }
@@ -127,7 +179,7 @@ class CircularBuffer<T> : IEnumerable<T>
 
     public IEnumerator<T> GetEnumerator()
     {
-        for(int i = 0; i < _values.Capacity; i++)
+        for (int i = 0; i < _values.Capacity; i++)
         {
             yield return ValueAt(i);
         }
@@ -162,7 +214,7 @@ class CircularBuffer<T> : IEnumerable<T>
     private int NextIndex()
     {
         _index++;
-        if(_index >= _values.Capacity)
+        if (_index >= _values.Capacity)
         {
             _index = 0;
         }
@@ -233,7 +285,7 @@ class TwoFrameDirectionComparator : FrameComparator
             ];
         }
 
-        for(int i = 0; i < 3; i++)
+        for (int i = 0; i < 3; i++)
         {
             if (angleDiff[1][i] < _angleThreshold)             { continue; }
             if (angleDiff[0][i] < _angleThreshold)             { continue; }
@@ -270,7 +322,7 @@ class DirectionComparator : FrameComparator
 
         float[] diffdiffs = diffs[1].Zip(diffs[0], (x, y) => x - y).ToArray();
 
-        if(diffdiffs.Any(x => x > _threshold))
+        if (diffdiffs.Any(x => x > _threshold))
         {
             return true;
         }

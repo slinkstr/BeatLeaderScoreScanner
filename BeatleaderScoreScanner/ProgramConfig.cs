@@ -40,7 +40,6 @@ namespace BeatleaderScoreScanner
         {
             var assemblyName = Assembly.GetExecutingAssembly().GetName();
 
-            // such a pain in the ass to customize this
             var helpText = HelpText.AutoBuild(result, h =>
             {
                 h.Heading                       = $"{assemblyName.Name} {assemblyName.Version}";
@@ -53,7 +52,7 @@ namespace BeatleaderScoreScanner
                 return HelpText.DefaultParsingErrorsHandler(result, h);
             }, e => e);
 
-            if(stderr)
+            if (stderr)
             {
                 Console.Error.WriteLine(helpText);
             }
@@ -70,25 +69,28 @@ namespace BeatleaderScoreScanner
         }
 
         [Option('o', "output-format", Default = Format.text, HelpText = "Changes output format.")]
-        public Format              OutputFormat { get; private set; }
+        public Format              OutputFormat      { get; private set; }
 
         [Option('s', "minimum-score", Default = 0, HelpText = "Only process replays that are above this percentage when scanning a profile. Valid values: 0.0 - 1.0")]
-        public float               MinimumScore { get; private set; }
+        public float               MinimumScore      { get; private set; }
 
         [Option('c', "count", Default = 10, HelpText = "Set the number of recent plays to fetch when scanning a profile.")]
-        public int                 Count        { get; private set; }
+        public int                 Count             { get; private set; }
 
         [Option('p', "page", Default = 1, HelpText = "Set the page to skip to when scanning a profile.")]
-        public int                 Page         { get; private set; }
+        public int                 Page              { get; private set; }
 
         [Option('f', "require-fc", HelpText = "Only process replays that full combo when scanning a profile.")]
-        public bool                RequireFC    { get; private set; } = false;
+        public bool                RequireFC         { get; private set; } = false;
+
+        [Option('u', "require-score-loss", HelpText = "Only print jitter times immediately before or after a note with underswing.")]
+        public bool                RequireScoreLoss { get; private set; } = false;
 
         [Option('a', "allow-file", HelpText = "Allow reading replay files from disk.")]
-        public bool                AllowFile    { get; private set; } = false;
+        public bool                AllowFile         { get; private set; } = false;
 
         [Value(0, Min = 1, MetaName = "input", HelpText = "Beatleader profile ID or URL, or replay URL.")]
-        public IEnumerable<string> Inputs       { get; private set; } = [];
+        public IEnumerable<string> Inputs            { get; private set; } = [];
 
         public enum Format
         {

@@ -1,19 +1,21 @@
 ﻿using System.Diagnostics;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Web;
 
 namespace HttpWrapper
 {
-    class HttpWrapper
+    partial class HttpWrapper
     {
-        private static HttpListener listener = new HttpListener();
-        private static string url = "http://localhost:55209/";
-        private static string blssBinary = "BeatleaderScoreScanner";
+        private static HttpListener listener   = new();
+        private static string       url        = "http://localhost:55209/";
+        private static string       blssBinary = "BeatleaderScoreScanner";
 
         public static void Main(string[] args)
         {
             // Make sure binary exists
-            if(!File.Exists(blssBinary) && !File.Exists(blssBinary + ".exe"))
+            if (!File.Exists(blssBinary) && !File.Exists(blssBinary + ".exe"))
             {
                 Console.Error.WriteLine("Unable to start server, " + blssBinary + " not found.");
                 return;
@@ -43,16 +45,16 @@ namespace HttpWrapper
                 HttpListenerResponse response = context.Response;
 
                 // Log
-                Console.WriteLine($"{request.HttpMethod} | {request.Url} | {request.UserHostName} | {request.UserAgent}");
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss zzz} | {request.HttpMethod} | {request.Url} | {request.UserHostName} | {request.UserAgent}");
 
                 string? replayInput = request.QueryString.Get("input");
-                if(string.IsNullOrWhiteSpace(replayInput))
+                if (string.IsNullOrWhiteSpace(replayInput))
                 {
                     await BadRequest(response);
                     continue;
                 }
 
-                int page = 1;
+                int     page = 1;
                 string? pageInput = request.QueryString.Get("page");
                 if (!string.IsNullOrWhiteSpace(pageInput))
                 {
@@ -63,10 +65,27 @@ namespace HttpWrapper
                     }
                 }
 
+                float   minimumScore = 0;
+                string? minimumScoreInput = request.QueryString.Get("minimum-score");
+                if (!string.IsNullOrWhiteSpace(minimumScoreInput))
+                {
+                    if (!float.TryParse(minimumScoreInput, out minimumScore))
+                    {
+                        await BadRequest(response);
+                        continue;
+                    }
+                }
+
+                bool requireScoreLoss = request.QueryString["require-score-loss"] != null;
+
                 var blssStartinfo = new ProcessStartInfo()
                 {
                     FileName = blssBinary,
-                    Arguments = $"--output-format json --page {page} {SanitizeForCommandLine(replayInput)}",
+                    Arguments = $"--output-format json " +
+                                (page != 1 ? $"--page {page} " : "") +
+                                (minimumScore > 0 ? $"--minimum-score {minimumScore} " : "") +
+                                (requireScoreLoss ? "--require-score-loss " : "") +
+                                $"-- {SanitizeForCommandLine(replayInput)}",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                 };
@@ -114,18 +133,32 @@ namespace HttpWrapper
 
         public static string SanitizeForCommandLine(string? input)
         {
-            if(string.IsNullOrWhiteSpace(input))
+            if (string.IsNullOrWhiteSpace(input))
             {
                 return "";
             }
 
-            return input.Split(" ")[0]
-                        .TrimStart('-')
-                        .Replace("\"", "")
-                        .Replace("'", "")
-                        .Replace("$", "")
-                        .Replace("`", "")
-                        .Replace("\\", "");
+            if (Uri.TryCreate(input, UriKind.Absolute, out Uri? result) && result != null)
+            {
+                input = HttpUtility.UrlEncode(input);
+            }
+            else
+            {
+                input = selectNonAscii().Replace(input, "");
+                input = input.Split(" ")[0]
+                             .TrimStart('-')
+                             .Replace("\"", "")
+                             .Replace("'" , "")
+                             .Replace("$" , "")
+                             .Replace("`" , "")
+                             .Replace("\\", "")
+                             .Replace("!" , "");
+            }
+
+            return input;
         }
+
+        [GeneratedRegex(@"[^\u0020-\u007F]+")]
+        private static partial Regex selectNonAscii();
     }
 }

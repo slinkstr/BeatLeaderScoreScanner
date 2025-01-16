@@ -13,9 +13,9 @@ namespace BeatleaderScoreScanner
         public string?           ScoreId          { get; private set; }
         public UnderswingSummary Underswing       { get; private set; }
 
-        public ReplayAnalysis(Replay replay, Uri replayUrl, string leaderboardId)
+        public ReplayAnalysis(Replay replay, bool requireScoreLoss, Uri replayUrl, string leaderboardId)
         {
-            JitterFrames  = JitterDetector.JitterTicks(replay);
+            JitterFrames  = JitterDetector.JitterTicks(replay, requireScoreLoss);
             LeaderboardId = leaderboardId;
             Replay        = replay;
             ReplayUrl     = replayUrl;
@@ -26,12 +26,12 @@ namespace BeatleaderScoreScanner
             List<string> strings = [];
             foreach (Frame frame in JitterFrames)
             {
-                var url = $"https://replay.beatleader.xyz/?link={ReplayUrl}&speed=2&time={(int)(frame.time * 1000) - 50}";
+                var url = $"{BeatLeaderDomain.Replay}/?link={ReplayUrl}&speed=2&time={(int)(frame.time * 1000) - 50}";
                 strings.Add(url);
             }
             JitterLinks = strings;
 
-            ScoreId = ReplayUrl.Host != "cdn.replays.beatleader.xyz" ? null : ReplayUrl.Segments.LastOrDefault()?.Split("-")?[0];
+            ScoreId = BeatLeaderDomain.IsReplayCdn(ReplayUrl) ? ReplayUrl.Segments.LastOrDefault()?.Split("-")?[0] : null;
         }
 
         public DateTime Date()

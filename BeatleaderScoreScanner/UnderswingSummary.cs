@@ -15,7 +15,7 @@ namespace BeatleaderScoreScanner
         public UnderswingSummary(Replay replay)
         {
             var processed = ReplayStatistic.ProcessReplay(replay);
-            if(processed.Item2 != null) { throw new Exception(processed.Item2); }
+            if (processed.Item2 != null) { throw new Exception(processed.Item2); }
             ScoreStatistic stats = processed.Item1!;
             int maxScore = stats.winTracker.maxScore;
 

@@ -7,6 +7,7 @@ using ReplayDecoder;
 
 internal class Program
 {
+
 #if DEBUG
     // to debug inconsistencies between program and bl
     private static Dictionary<long, long> BeatleaderUnderswings = new()
@@ -149,9 +150,9 @@ internal class Program
     */
 #endif
 
-    private static HttpClient _httpClient = new();
-    private static AsyncReplayDecoder _decoder = new();
-    private static ProgramConfig? _config;
+    private static HttpClient         _httpClient = new();
+    private static AsyncReplayDecoder _decoder    = new();
+    private static ProgramConfig?     _config;
 
     private static async Task Main(string[] args)
     {
@@ -168,18 +169,15 @@ internal class Program
             Replay?               replay    = null;
             Uri?                  replayUrl = null;
 
-            if (Uri.TryCreate(input, UriKind.Absolute, out var result))
+            if (Uri.TryCreate(HttpUtility.UrlDecode(input), UriKind.Absolute, out var result))
             {
-                bool isBeatleader       = result.Host == "beatleader.xyz"             || result.Host == "beatleader.net";
-                bool isBeatleaderReplay = result.Host == "replay.beatleader.xyz"      || result.Host == "replay.beatleader.net";
-
                 if (result.IsFile && !_config.AllowFile) { throw new Exception("Unable to read file, pass --allow-file to allow."); }
 
-                if (isBeatleader && result.Segments[1] == "u/")
+                if (BeatLeaderDomain.IsValid(result) && result.Segments[1] == "u/")
                 {
                     scores = await GetPlayerScores(result.Segments[2].TrimEnd('/'), _config.Count, _config.Page);
                 }
-                else if (isBeatleaderReplay)
+                else if (BeatLeaderDomain.IsReplay(result))
                 {
                     var queryParams = HttpUtility.ParseQueryString(result.Query);
                     var scoreId = queryParams.Get("scoreId");
@@ -211,7 +209,7 @@ internal class Program
             }
 
             string output = "";
-            if(scores != null)
+            if (scores != null)
             {
                 List<Task<string>> scans = new();
                 foreach (var s in scores)
@@ -219,7 +217,7 @@ internal class Program
                     scans.Add(ScanScore(s, _config));
                 }
                 await Task.WhenAll(scans);
-                foreach(var scan in scans)
+                foreach (var scan in scans)
                 {
                     if (!string.IsNullOrWhiteSpace(scan.Result))
                     {
@@ -255,8 +253,8 @@ internal class Program
 
         var scoreAcc           = (float)score.accuracy;
         var scoreFc            = (bool)score.fullCombo;
-        if(config.RequireFC && !scoreFc)   { return null; }
-        if(config.MinimumScore > scoreAcc) { return null; }
+        if (config.RequireFC && !scoreFc)   { return null; }
+        if (config.MinimumScore > scoreAcc) { return null; }
 
         var replay = await ReplayFetch.FromUri((string)score.replay);
         var output = await ScanReplay(replay, config, scoreReplayUrl, scoreLeaderboardId);
@@ -266,15 +264,15 @@ internal class Program
     private static async Task<string> ScanReplay(Replay replay, ProgramConfig config, Uri replayUrl, string leaderboardId = "")
     {
         ReplayAnalysis? analysis = null;
-        await Task.Run(() => { analysis = new ReplayAnalysis(replay, replayUrl, leaderboardId); });
-        if(analysis == null)
+        await Task.Run(() => { analysis = new ReplayAnalysis(replay, config.RequireScoreLoss, replayUrl, leaderboardId); });
+        if (analysis == null)
         {
             throw new Exception("Replay analysis was null.");
         }
 #if DEBUG
         if (!string.IsNullOrWhiteSpace(analysis.ScoreId) && BeatleaderUnderswings.TryGetValue(long.Parse(analysis.ScoreId), out long under))
         {
-            if(under != analysis.Underswing.LostScore)
+            if (under != analysis.Underswing.LostScore)
             {
                 await Console.Out.WriteLineAsync($"{analysis.ScoreId} | {replay.info.songName} underswing did not match Beatleader. Calc: {analysis.Underswing.LostScore}, BL: {under} ({under - analysis.Underswing.LostScore})");
             }
@@ -307,7 +305,7 @@ internal class Program
 
     private static async Task<dynamic> GetScore(string scoreId)
     {
-        string endpoint = $"https://api.beatleader.xyz/score/{scoreId}";
+        string endpoint = $"{BeatLeaderDomain.Api}/score/{scoreId}";
         var response = await _httpClient.GetAsync(endpoint);
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
@@ -320,11 +318,11 @@ internal class Program
         if (count < 1)   { throw new ArgumentException("Count must be a positive integer.", nameof(count)); }
         if (count > 100) { throw new ArgumentException("Count can't be greater than 100." , nameof(count)); }
 
-        string endpoint = $"https://api.beatleader.xyz/player/{playerId}/scores";
+        string endpoint = $"{BeatLeaderDomain.Api}/player/{playerId}/scores";
         string args = $"?sortBy=date&page={page}&count={count}";
 
         var response = await _httpClient.GetAsync(endpoint + args);
-        if(response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
             return [];
         }
