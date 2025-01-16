@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace BeatleaderScoreScanner
+namespace BeatLeaderScoreScanner
 {
     internal static class BeatLeaderDomain
     {

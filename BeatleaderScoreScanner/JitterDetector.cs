@@ -25,7 +25,7 @@ document.getElementsByTagName("a-scene")[0].components.song.getCurrentTime();
 or just skip to Frame.time with &time=<time * 1000>
 */
 
-namespace BeatleaderScoreScanner
+namespace BeatLeaderScoreScanner
 {
     internal static class JitterDetector
     {

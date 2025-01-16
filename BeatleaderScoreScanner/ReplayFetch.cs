@@ -2,11 +2,11 @@
 using System.Text;
 using ReplayDecoder;
 
-namespace BeatleaderScoreScanner
+namespace BeatLeaderScoreScanner
 {
     internal static class ReplayFetch
     {
-        private static string _cachePath = Path.Combine(Path.GetTempPath(), "BeatleaderScoreScanner");
+        private static string _cachePath = Path.Combine(Path.GetTempPath(), "BeatLeaderScoreScanner");
         private static HttpClient _httpClient = new();
 
         static ReplayFetch()

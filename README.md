@@ -1,6 +1,6 @@
-# BeatleaderScoreScanner
+# BeatLeaderScoreScanner
 
-Analyzes Beat Saber replays from Beatleader (using the BS Open Replay format) to detect swing jitter and underswing stats.
+Analyzes Beat Saber replays from BeatLeader (using the BS Open Replay format) to detect swing jitter and underswing stats.
 
 CLI tool - run from command prompt, don't double click.
 

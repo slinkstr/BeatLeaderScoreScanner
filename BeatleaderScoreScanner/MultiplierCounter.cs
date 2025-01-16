@@ -1,6 +1,6 @@
 ﻿// Lifted and modified from ReplayDecoder.ReplayStatistic.cs
 
-namespace BeatleaderScoreScanner
+namespace BeatLeaderScoreScanner
 {
     internal class MultiplierCounter
     {

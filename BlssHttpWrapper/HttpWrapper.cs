@@ -10,7 +10,7 @@ namespace HttpWrapper
     {
         private static HttpListener listener   = new();
         private static string       url        = "http://localhost:55209/";
-        private static string       blssBinary = "BeatleaderScoreScanner";
+        private static string       blssBinary = "BeatLeaderScoreScanner";
 
         public static void Main(string[] args)
         {

@@ -2,7 +2,7 @@
 using CommandLine;
 using CommandLine.Text;
 
-namespace BeatleaderScoreScanner
+namespace BeatLeaderScoreScanner
 {
     internal class ProgramConfig
     {
@@ -89,7 +89,7 @@ namespace BeatleaderScoreScanner
         [Option('a', "allow-file", HelpText = "Allow reading replay files from disk.")]
         public bool                AllowFile         { get; private set; } = false;
 
-        [Value(0, Min = 1, MetaName = "input", HelpText = "Beatleader profile ID or URL, or replay URL.")]
+        [Value(0, Min = 1, MetaName = "input", HelpText = "BeatLeader profile ID or URL, or replay URL.")]
         public IEnumerable<string> Inputs            { get; private set; } = [];
 
         public enum Format
@@ -98,7 +98,7 @@ namespace BeatleaderScoreScanner
             json
         }
 
-        [Usage(ApplicationAlias = "BeatleaderScoreScanner")]
+        [Usage(ApplicationAlias = "BeatLeaderScoreScanner")]
         public static List<Example> Examples { get; private set; } =
         [
             new Example("Scan profile"    , new ProgramConfig { Inputs = new List<string>() { "<profile>" } }),

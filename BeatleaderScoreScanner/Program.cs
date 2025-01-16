@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 using System.Web;
-using BeatleaderScoreScanner;
+using BeatLeaderScoreScanner;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using ReplayDecoder;
@@ -10,7 +10,7 @@ internal class Program
 
 #if DEBUG
     // to debug inconsistencies between program and bl
-    private static Dictionary<long, long> BeatleaderUnderswings = new()
+    private static Dictionary<long, long> BeatLeaderUnderswings = new()
     {
         // 1
         { 19673962, 10136 },
@@ -270,11 +270,11 @@ internal class Program
             throw new Exception("Replay analysis was null.");
         }
 #if DEBUG
-        if (!string.IsNullOrWhiteSpace(analysis.ScoreId) && BeatleaderUnderswings.TryGetValue(long.Parse(analysis.ScoreId), out long under))
+        if (!string.IsNullOrWhiteSpace(analysis.ScoreId) && BeatLeaderUnderswings.TryGetValue(long.Parse(analysis.ScoreId), out long under))
         {
             if (under != analysis.Underswing.LostScore)
             {
-                await Console.Out.WriteLineAsync($"{analysis.ScoreId} | {replay.info.songName} underswing did not match Beatleader. Calc: {analysis.Underswing.LostScore}, BL: {under} ({under - analysis.Underswing.LostScore})");
+                await Console.Out.WriteLineAsync($"{analysis.ScoreId} | {replay.info.songName} underswing did not match BeatLeader. Calc: {analysis.Underswing.LostScore}, BL: {under} ({under - analysis.Underswing.LostScore})");
             }
         }
         else

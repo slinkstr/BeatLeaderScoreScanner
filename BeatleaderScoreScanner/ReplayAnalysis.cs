@@ -1,6 +1,6 @@
 ﻿using ReplayDecoder;
 
-namespace BeatleaderScoreScanner
+namespace BeatLeaderScoreScanner
 {
     internal class ReplayAnalysis
     {

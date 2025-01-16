@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.9.34714.143
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeatleaderScoreScanner", "BeatleaderScoreScanner\BeatleaderScoreScanner.csproj", "{B38F9B2B-0C5D-4D31-ADC5-B3830C2CC003}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeatLeaderScoreScanner", "BeatLeaderScoreScanner\BeatLeaderScoreScanner.csproj", "{B38F9B2B-0C5D-4D31-ADC5-B3830C2CC003}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReplayDecoder", "..\..\..\..\opensource\ReplayDecoder\ReplayDecoder\ReplayDecoder.csproj", "{273A50B8-3D7E-41C8-BA06-273C624988C1}"
 EndProject
