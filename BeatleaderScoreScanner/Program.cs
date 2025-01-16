@@ -173,7 +173,7 @@ internal class Program
             {
                 if (result.IsFile && !_config.AllowFile) { throw new Exception("Unable to read file, pass --allow-file to allow."); }
 
-                if (BeatLeaderDomain.IsValid(result) && result.Segments[1] == "u/")
+                if (BeatLeaderDomain.IsValid(result) && result.Segments.Length > 1 && result.Segments[1] == "u/")
                 {
                     scores = await GetPlayerScores(result.Segments[2].TrimEnd('/'), _config.Count, _config.Page);
                 }
