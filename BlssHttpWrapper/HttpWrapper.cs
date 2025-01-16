@@ -50,6 +50,7 @@ namespace HttpWrapper
                 string? replayInput = request.QueryString.Get("input");
                 if (string.IsNullOrWhiteSpace(replayInput))
                 {
+                    await Console.Out.WriteLineAsync("Rejecting due to malformed replayInput.");
                     await BadRequest(response);
                     continue;
                 }
@@ -60,6 +61,7 @@ namespace HttpWrapper
                 {
                     if (!int.TryParse(pageInput, out page))
                     {
+                        await Console.Out.WriteLineAsync("Rejecting due to malformed pageInput.");
                         await BadRequest(response);
                         continue;
                     }
@@ -71,6 +73,7 @@ namespace HttpWrapper
                 {
                     if (!float.TryParse(minimumScoreInput, out minimumScore))
                     {
+                        await Console.Out.WriteLineAsync("Rejecting due to malformed minimumScoreInput.");
                         await BadRequest(response);
                         continue;
                     }
@@ -103,6 +106,7 @@ namespace HttpWrapper
 
                 if (!string.IsNullOrWhiteSpace(blssErr))
                 {
+                    await Console.Out.WriteLineAsync("Rejecting due to BLSS error. Ouptut:\n" + blssErr);
                     await BadRequest(response);
                     continue;
                 }
