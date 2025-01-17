@@ -11,7 +11,7 @@ namespace BeatLeaderScoreScanner
 
         public static bool IsValid(string input)
         {
-            if (!Uri.TryCreate(input, UriKind.Absolute, out Uri uri))
+            if (!Uri.TryCreate(input, UriKind.Absolute, out Uri? uri) || uri == null)
             {
                 throw new Exception("Input must be a valid URI.");
             }

@@ -81,6 +81,8 @@ namespace HttpWrapper
 
                 bool requireScoreLoss = request.QueryString["require-score-loss"] != null;
 
+                bool requireFc = request.QueryString["require-fc"] != null;
+
                 var blssStartinfo = new ProcessStartInfo()
                 {
                     FileName = blssBinary,
@@ -88,6 +90,7 @@ namespace HttpWrapper
                                 (page != 1 ? $"--page {page} " : "") +
                                 (minimumScore > 0 ? $"--minimum-score {minimumScore} " : "") +
                                 (requireScoreLoss ? "--require-score-loss " : "") +
+                                (requireFc ? "--require-fc " : "") +
                                 $"-- {SanitizeForCommandLine(replayInput)}",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,

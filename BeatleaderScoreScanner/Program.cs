@@ -159,132 +159,102 @@ internal class Program
         _config = ProgramConfig.ArgsToConfig(args);
         if (_config == null)
         {
-            Environment.Exit(1);
+            throw new Exception("Unable to parse config.");
         }
 
+        List<Task<string>> inputTasks = new();
         foreach (string input in _config.Inputs)
         {
-            IEnumerable<dynamic>? scores    = null;
-            dynamic?              score     = null;
-            Replay?               replay    = null;
-            Uri?                  replayUrl = null;
+            inputTasks.Add(ProcessInput(input, _config));
+        }
+        await Task.WhenAll(inputTasks);
+        foreach(var task in inputTasks)
+        {
+            await Console.Out.WriteLineAsync(task.Result);
+        }
+    }
 
-            if (Uri.TryCreate(HttpUtility.UrlDecode(input), UriKind.Absolute, out var result))
+    public static async Task<string> ProcessInput(string input, ProgramConfig config)
+    {
+        List<Task<ReplayAnalysis?>> tasks = new();
+
+        if (Uri.TryCreate(HttpUtility.UrlDecode(input), UriKind.Absolute, out var result))
+        {
+            if (result.IsFile && !config.AllowFile) { throw new Exception("Unable to read file, pass --allow-file to allow."); }
+
+            if (BeatLeaderDomain.IsValid(result) && result.Segments.Length > 1 && result.Segments[1] == "u/")
             {
-                if (result.IsFile && !_config.AllowFile) { throw new Exception("Unable to read file, pass --allow-file to allow."); }
+                tasks.AddRange(await AnalyzeFromProfileId(result.Segments[2].TrimEnd('/'), config));
+            }
+            else if (BeatLeaderDomain.IsReplay(result))
+            {
+                var queryParams = HttpUtility.ParseQueryString(result.Query);
+                var scoreId = queryParams.Get("scoreId");
+                var link = queryParams.Get("link");
 
-                if (BeatLeaderDomain.IsValid(result) && result.Segments.Length > 1 && result.Segments[1] == "u/")
+                if (scoreId != null)
                 {
-                    scores = await GetPlayerScores(result.Segments[2].TrimEnd('/'), _config.Count, _config.Page);
+                    tasks.Add(AnalyzeFromScoreId(scoreId, config));
                 }
-                else if (BeatLeaderDomain.IsReplay(result))
+                else if (link != null)
                 {
-                    var queryParams = HttpUtility.ParseQueryString(result.Query);
-                    var scoreId = queryParams.Get("scoreId");
-                    var link = queryParams.Get("link");
-
-                    if (scoreId != null)
-                    {
-                        score = await GetScore(scoreId);
-                    }
-                    else if (link != null)
-                    {
-                        replay = await ReplayFetch.FromUri(link);
-                        replayUrl = new Uri(link);
-                    }
-                    else
-                    {
-                        throw new Exception("Unable to find replay from BeatLeader URL: " + input);
-                    }
+                    tasks.Add(AnalyzeFromBsorUrl(link, config));
                 }
                 else
                 {
-                    replay = await ReplayFetch.FromUri(result);
-                    replayUrl = result;
+                    throw new Exception("Unable to find replay from BeatLeader URL: " + input);
                 }
             }
             else
             {
-                scores = await GetPlayerScores(input, _config.Count, _config.Page);
-            }
-
-            string output = "";
-            if (scores != null)
-            {
-                List<Task<string>> scans = new();
-                foreach (var s in scores)
-                {
-                    scans.Add(ScanScore(s, _config));
-                }
-                await Task.WhenAll(scans);
-                foreach (var scan in scans)
-                {
-                    if (!string.IsNullOrWhiteSpace(scan.Result))
-                    {
-                        output += scan.Result + "\n";
-                    }
-                }
-                output = output.TrimEnd('\n');
-            }
-            else if (score != null)
-            {
-                output = await ScanScore(score, _config);
-            }
-            else if (replay != null)
-            {
-                output = await ScanReplay(replay, _config, replayUrl!);
-            }
-            else
-            {
-                throw new Exception("No data to analyze.");
-            }
-
-            await Console.Out.WriteLineAsync(output);
-        }
-    }
-
-    private static async Task<string?> ScanScore(dynamic score, ProgramConfig config)
-    {
-        var diff = score.leaderboard?.difficulty ?? score.difficulty ?? throw new Exception("Error parsing difficulty.");
-
-        // required for linking leaderboards/replays
-        var scoreReplayUrl     = new Uri((string)score.replay);
-        var scoreLeaderboardId = (string)score.leaderboardId;
-
-        var scoreAcc           = (float)score.accuracy;
-        var scoreFc            = (bool)score.fullCombo;
-        if (config.RequireFC && !scoreFc)   { return null; }
-        if (config.MinimumScore > scoreAcc) { return null; }
-
-        var replay = await ReplayFetch.FromUri((string)score.replay);
-        var output = await ScanReplay(replay, config, scoreReplayUrl, scoreLeaderboardId);
-        return output;
-    }
-
-    private static async Task<string> ScanReplay(Replay replay, ProgramConfig config, Uri replayUrl, string leaderboardId = "")
-    {
-        ReplayAnalysis? analysis = null;
-        await Task.Run(() => { analysis = new ReplayAnalysis(replay, config.RequireScoreLoss, replayUrl, leaderboardId); });
-        if (analysis == null)
-        {
-            throw new Exception("Replay analysis was null.");
-        }
-#if DEBUG
-        if (!string.IsNullOrWhiteSpace(analysis.ScoreId) && BeatLeaderUnderswings.TryGetValue(long.Parse(analysis.ScoreId), out long under))
-        {
-            if (under != analysis.Underswing.LostScore)
-            {
-                await Console.Out.WriteLineAsync($"{analysis.ScoreId} | {replay.info.songName} underswing did not match BeatLeader. Calc: {analysis.Underswing.LostScore}, BL: {under} ({under - analysis.Underswing.LostScore})");
+                tasks.Add(AnalyzeFromBsorUrl(result.ToString(), config));
             }
         }
         else
         {
-            await Console.Out.WriteLineAsync("Did not have BL value for " + analysis.Replay.info.songName);
+            tasks.AddRange(await AnalyzeFromProfileId(input, config));
+        }
+
+        var analyses = await Task.WhenAll(tasks);
+
+#if DEBUG
+        foreach (var analysis in analyses)
+        {
+            if (analysis == null) { continue; }
+
+            if (!string.IsNullOrWhiteSpace(analysis.ScoreId) && BeatLeaderUnderswings.TryGetValue(long.Parse(analysis.ScoreId), out long under))
+            {
+                if (under != analysis.Underswing.LostScore)
+                {
+                    await Console.Out.WriteLineAsync($"{analysis.ScoreId} | {analysis.Replay.info.songName} underswing did not match BeatLeader. Calc: {analysis.Underswing.LostScore}, BL: {under} ({under - analysis.Underswing.LostScore})");
+                }
+            }
+            else
+            {
+                await Console.Out.WriteLineAsync("Did not have BL value for " + analysis.Replay.info.songName);
+            }
         }
 #endif
+
         string output = "";
-        if (config.OutputFormat == ProgramConfig.Format.text)
+        foreach (var analysis in analyses)
         {
+            output += OutputAnalysis(analysis, config.OutputFormat) + "\n";
+        }
+        output = output.TrimEnd('\n');
+        return output;
+    }
+
+    public static string OutputAnalysis(ReplayAnalysis? analysis, ProgramConfig.Format format)
+    {
+        string output = "";
+        if (format == ProgramConfig.Format.text)
+        {
+            if (analysis == null)
+            {
+                return "Analysis skipped.";
+            }
+
             output = analysis.ToString() + "\n";
             foreach (var time in analysis.JitterLinks)
             {
@@ -292,15 +262,73 @@ internal class Program
             }
             output = output.TrimEnd('\n');
         }
-        else if (config.OutputFormat == ProgramConfig.Format.json)
+        else if (format == ProgramConfig.Format.json)
         {
+            if (analysis == null)
+            {
+                return "null";
+            }
+
             output = JsonConvert.SerializeObject(analysis, new JsonSerializerSettings()
             {
-                ContractResolver = new IgnorePropertiesResolver([ "frames", "heights", "notes", "pauses", "walls", "fps", "head", "leftHand", "rightHand" ]),
+                ContractResolver = new IgnorePropertiesResolver(["frames", "heights", "notes", "pauses", "walls", "fps", "head", "leftHand", "rightHand"]),
             });
         }
 
         return output;
+    }
+
+    public static async Task<List<Task<ReplayAnalysis?>>> AnalyzeFromProfileId(string playerId, ProgramConfig config)
+    {
+        List<Task<ReplayAnalysis?>> analysisTasks = new();
+
+        var scores = await GetPlayerScores(playerId, config.Count, config.Page);
+        foreach (var score in scores)
+        {
+            if (config.MinimumScore > (float)score.accuracy)
+            {
+                analysisTasks.Add(Task.FromResult<ReplayAnalysis?>(null));
+            }
+            else if (config.RequireFC && !(bool)score.fullCombo)
+            {
+                analysisTasks.Add(Task.FromResult<ReplayAnalysis?>(null));
+            }
+            else
+            {
+                analysisTasks.Add(ScanScore(score, config));
+            }
+        }
+
+        return analysisTasks;
+    }
+
+    public static async Task<ReplayAnalysis?> AnalyzeFromScoreId(string scoreId, ProgramConfig config)
+    {
+        var score = await GetScore(scoreId);
+        return await ScanScore(score, config);
+    }
+
+    public static async Task<ReplayAnalysis?> AnalyzeFromBsorUrl(string replayUrl, ProgramConfig config)
+    {
+        var replay = await ReplayFetch.FromUri(replayUrl);
+        return await ScanReplay(replay, config.RequireScoreLoss, new Uri(replayUrl));
+    }
+
+    private static async Task<ReplayAnalysis> ScanScore(dynamic score, ProgramConfig config)
+    {
+        // required for linking leaderboards/replays
+        var scoreReplayUrl     = new Uri((string)score.replay);
+        var scoreLeaderboardId = (string)score.leaderboardId;
+
+        var replay = await ReplayFetch.FromUri((string)score.replay);
+        var analysis = await ScanReplay(replay, config.RequireScoreLoss, scoreReplayUrl, scoreLeaderboardId);
+        return analysis;
+    }
+
+    private static async Task<ReplayAnalysis> ScanReplay(Replay replay, bool requireScoreLoss, Uri replayUrl, string leaderboardId = "")
+    {
+        ReplayAnalysis analysis = await Task.Run(() => { return new ReplayAnalysis(replay, requireScoreLoss, replayUrl, leaderboardId); });
+        return analysis;
     }
 
     private static async Task<dynamic> GetScore(string scoreId)

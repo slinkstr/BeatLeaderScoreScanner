@@ -9,16 +9,16 @@ namespace BeatLeaderScoreScanner
         public float             JittersPerMinute { get; private set; }
         public string            LeaderboardId    { get; private set; }
         public Replay            Replay           { get; private set; }
-        public Uri               ReplayUrl        { get; private set; }
+        public Uri               ReplayUri        { get; private set; }
         public string?           ScoreId          { get; private set; }
         public UnderswingSummary Underswing       { get; private set; }
 
-        public ReplayAnalysis(Replay replay, bool requireScoreLoss, Uri replayUrl, string leaderboardId)
+        public ReplayAnalysis(Replay replay, bool requireScoreLoss, Uri replayUri, string leaderboardId)
         {
             JitterFrames  = JitterDetector.JitterTicks(replay, requireScoreLoss);
             LeaderboardId = leaderboardId;
             Replay        = replay;
-            ReplayUrl     = replayUrl;
+            ReplayUri     = replayUri;
             Underswing    = new UnderswingSummary(replay);
 
             JittersPerMinute = JitterFrames.Count / (Replay.frames.Last().time / 60f);
@@ -26,12 +26,12 @@ namespace BeatLeaderScoreScanner
             List<string> strings = [];
             foreach (Frame frame in JitterFrames)
             {
-                var url = $"{BeatLeaderDomain.Replay}/?link={ReplayUrl}&speed=2&time={(int)(frame.time * 1000) - 50}";
+                var url = $"{BeatLeaderDomain.Replay}/?link={ReplayUri}&speed=2&time={(int)(frame.time * 1000) - 50}";
                 strings.Add(url);
             }
             JitterLinks = strings;
 
-            ScoreId = BeatLeaderDomain.IsReplayCdn(ReplayUrl) ? ReplayUrl.Segments.LastOrDefault()?.Split("-")?[0] : null;
+            ScoreId = BeatLeaderDomain.IsReplayCdn(ReplayUri) ? ReplayUri.Segments.LastOrDefault()?.Split("-")?[0] : null;
         }
 
         public DateTime Date()
