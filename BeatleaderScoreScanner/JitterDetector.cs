@@ -32,21 +32,19 @@ namespace BeatLeaderScoreScanner
         private const int   DebounceDurationTicks = 5;
         private const float NoteWindow = 0.1f;
 
-        public static List<Frame> JitterTicks(Replay replay, bool requireScoreLoss)
+        public static List<Frame> Jitters(Replay replay, bool requireScoreLoss)
         {
-            List<FrameComparator> comparators = new()
-            {
-                new TwoFrameDirectionComparator(),
-                //new DirectionComparator(),
-                //new DistanceComparator(),
-            };
-
-            return JitterTicks(replay, requireScoreLoss, comparators);
+            return MatchingFrames(replay, [ new TwoFrameDirectionComparator() ], [ new OriginResetComparator() ], requireScoreLoss);
+        }
+        
+        public static List<Frame> OriginResets(Replay replay)
+        {
+            return MatchingFrames(replay, [ new OriginResetComparator() ]);
         }
 
-        public static List<Frame> JitterTicks(Replay replay, bool requireScoreLoss, List<FrameComparator> comparators)
+        public static List<Frame> MatchingFrames(Replay replay, List<FrameComparator> comparators, List<FrameComparator>? ignoreComparators = null, bool requireScoreLoss = false)
         {
-            List<Frame> ret = new();
+            List<Frame> ret = [];
             int debounceSkipTo = 0;
 
             List<NoteEvent> underswingNotes = replay.notes.Where(x =>
@@ -60,6 +58,7 @@ namespace BeatLeaderScoreScanner
                 {
                     return true;
                 }
+                
                 return false;
             }).ToList();
 
@@ -109,6 +108,15 @@ namespace BeatLeaderScoreScanner
                     if (note.eventTime < frame.time && note.noteCutInfo.afterCutRating >= 1)
                     {
                         continue;
+                    }
+                }
+                
+                foreach (var comparator in ignoreComparators ?? [])
+                {
+                    if (comparator.Compare(frame))
+                    {
+                        debounceSkipTo = i + DebounceDurationTicks;
+                        
                     }
                 }
 
@@ -360,5 +368,35 @@ class DistanceComparator : FrameComparator
         }
 
         return false;
+    }
+}
+
+class OriginResetComparator : FrameComparator
+{
+    private const float _threshold = 0.1f;
+    
+    protected override CircularBuffer<Frame> FrameBuffer { get; set; } = new(1);
+    
+    protected override bool Detected()
+    {
+        var frame = FrameBuffer[0];
+        Vector3[] positions =
+        [
+            frame.leftHand.position,
+            frame.rightHand.position,
+        ];
+        
+        // Quaternion[] rotations =
+        // [
+        //     frame.leftHand.rotation,
+        //     frame.rightHand.rotation,
+        // ];
+        
+        if(positions.Any(vec => Math.Abs(vec.x) > _threshold || Math.Abs(vec.y) > _threshold || Math.Abs(vec.z) > _threshold))
+        {
+            return false;
+        }
+        
+        return true;
     }
 }

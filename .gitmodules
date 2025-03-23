@@ -1,0 +1,3 @@
+[submodule "ReplayDecoder"]
+	path = ReplayDecoder
+	url = https://github.com/slinkstr/ReplayDecoder.git

@@ -254,13 +254,28 @@ internal class Program
             {
                 return "Analysis skipped.";
             }
+            
+            output = analysis.ToString();
 
-            output = analysis.ToString() + "\n";
-            foreach (var time in analysis.JitterLinks)
+            if (analysis.JitterFrames.Count > 0)
             {
-                output += time + "\n";
+                output += "\nJITTERS:\n";
+                foreach (var time in analysis.JitterLinks)
+                {
+                    output += $"\t{time}\n";
+                }
+                output = output.TrimEnd('\n');
             }
-            output = output.TrimEnd('\n');
+            
+            if (analysis.OriginResetFrames.Count > 0)
+            {
+                output += "\nORIGIN RESETS:\n";
+                foreach (var time in analysis.OriginResetLinks)
+                {
+                    output += $"\t{time}\n";
+                }
+                output = output.TrimEnd('\n');
+            }
         }
         else if (format == ProgramConfig.Format.json)
         {
