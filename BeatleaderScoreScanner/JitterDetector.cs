@@ -373,7 +373,7 @@ class DistanceComparator : FrameComparator
 
 class OriginResetComparator : FrameComparator
 {
-    private const float _threshold = 0.1f;
+    private const float _threshold = 0.2f;
     
     protected override CircularBuffer<Frame> FrameBuffer { get; set; } = new(1);
     
@@ -392,7 +392,7 @@ class OriginResetComparator : FrameComparator
         //     frame.rightHand.rotation,
         // ];
         
-        if(positions.Any(vec => Math.Abs(vec.x) > _threshold || Math.Abs(vec.y) > _threshold || Math.Abs(vec.z) > _threshold))
+        if (positions.Any(vec => Math.Abs(vec.x) > _threshold || Math.Abs(vec.y) > _threshold || Math.Abs(vec.z) > _threshold))
         {
             return false;
         }
