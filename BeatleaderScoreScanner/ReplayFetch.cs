@@ -69,7 +69,6 @@ namespace BeatLeaderScoreScanner
 
         private static string GetCachedFilename(Uri uri)
         {
-            byte[] data = Encoding.UTF8.GetBytes(uri.AbsoluteUri);
             byte[] hash;
             using (MD5 md5 = MD5.Create())
             {

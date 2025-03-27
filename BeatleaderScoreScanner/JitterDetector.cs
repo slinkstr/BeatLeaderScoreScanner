@@ -113,7 +113,7 @@ namespace BeatLeaderScoreScanner
                 
                 foreach (var comparator in ignoreComparators ?? [])
                 {
-                    if (comparator.Compare(frame))
+                    if (comparator.Compare(frame, replay.saberOffsets))
                     {
                         debounceSkipTo = i + DebounceDurationTicks;
                         
@@ -122,7 +122,7 @@ namespace BeatLeaderScoreScanner
 
                 foreach (var comparator in comparators)
                 {
-                    if (comparator.Compare(frame))
+                    if (comparator.Compare(frame, replay.saberOffsets))
                     {
                         ret.Add(frame);
                         debounceSkipTo = i + DebounceDurationTicks;
@@ -233,14 +233,14 @@ class CircularBuffer<T> : IEnumerable<T>
 abstract class FrameComparator
 {
     protected abstract CircularBuffer<Frame> FrameBuffer { get; set; }
-    protected abstract bool Detected();
+    protected abstract bool Detected(SaberOffsets? saberOffsets = null);
 
-    public bool Compare(Frame frame)
+    public bool Compare(Frame frame, SaberOffsets? saberOffsets = null)
     {
         FrameBuffer.Add(frame);
         if (!BufferFull()) { return false; }
 
-        return Detected();
+        return Detected(saberOffsets);
     }
 
     public string DetectionAlert()
@@ -266,7 +266,7 @@ class TwoFrameDirectionComparator : FrameComparator
 
     protected override CircularBuffer<Frame> FrameBuffer { get; set; } = new(4);
 
-    protected override bool Detected()
+    protected override bool Detected(SaberOffsets? saberOffsets = null)
     {
         Vector3[][] vecs = new Vector3[FrameBuffer.Capacity() - 1][];
         for (int i = 0; i < vecs.Length; i++)
@@ -313,7 +313,7 @@ class DirectionComparator : FrameComparator
 
     protected override CircularBuffer<Frame> FrameBuffer { get; set; } = new(3);
 
-    protected override bool Detected()
+    protected override bool Detected(SaberOffsets? saberOffsets = null)
     {
         float[][] diffs = new float[FrameBuffer.Capacity() - 1][];
         for (int i = 0; i < FrameBuffer.Capacity() - 1; i++)
@@ -345,7 +345,7 @@ class DistanceComparator : FrameComparator
 
     protected override CircularBuffer<Frame> FrameBuffer { get; set; } = new(3);
 
-    protected override bool Detected()
+    protected override bool Detected(SaberOffsets? saberOffsets = null)
     {
         float[][] diffs = new float[FrameBuffer.Capacity() - 1][];
         for (int i = 0; i < FrameBuffer.Capacity() - 1; i++)
@@ -373,11 +373,11 @@ class DistanceComparator : FrameComparator
 
 class OriginResetComparator : FrameComparator
 {
-    private const float _threshold = 0.2f;
+    private const float _threshold = 0.01f;
     
     protected override CircularBuffer<Frame> FrameBuffer { get; set; } = new(1);
     
-    protected override bool Detected()
+    protected override bool Detected(SaberOffsets? saberOffsets = null)
     {
         var frame = FrameBuffer[0];
         Vector3[] positions =
@@ -385,6 +385,16 @@ class OriginResetComparator : FrameComparator
             frame.leftHand.position,
             frame.rightHand.position,
         ];
+        
+        if (saberOffsets != null)
+        {
+            positions[0].x -= saberOffsets.leftSaberLocalPosition.x;
+            positions[0].y -= saberOffsets.leftSaberLocalPosition.y;
+            positions[0].z -= saberOffsets.leftSaberLocalPosition.z;
+            positions[1].x -= saberOffsets.rightSaberLocalPosition.x;
+            positions[1].y -= saberOffsets.rightSaberLocalPosition.y;
+            positions[1].z -= saberOffsets.rightSaberLocalPosition.z;
+        }
         
         // Quaternion[] rotations =
         // [

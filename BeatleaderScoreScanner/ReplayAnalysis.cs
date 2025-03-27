@@ -44,7 +44,7 @@ namespace BeatLeaderScoreScanner
                    $"{Underswing.Acc * 100:0.00}% | " +
                    $"Lost {Underswing.LostScore} points ({Underswing.LostAcc * 100:0.00}%), fullswing acc: {Underswing.FullSwingAcc * 100:0.00}% | " +
                    $"{JitterFrames.Count} jitters ({JittersPerMinute:F2}/min) | " +
-                   $"{OriginResetFrames.Count} zero frames ({OriginResetsPerMinute:F2}/min) | " +
+                   $"{OriginResetFrames.Count} origin resets ({OriginResetsPerMinute:F2}/min) | " +
                    $"{Replay.info.songName}" + (string.IsNullOrWhiteSpace(LeaderboardId) ? "" : $" ({LeaderboardId})");
         }
         
