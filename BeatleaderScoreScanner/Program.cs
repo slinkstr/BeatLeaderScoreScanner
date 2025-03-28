@@ -159,7 +159,8 @@ internal class Program
         _config = ProgramConfig.ArgsToConfig(args);
         if (_config == null)
         {
-            throw new Exception("Unable to parse config.");
+            // Output already handled
+            Environment.Exit(0);
         }
 
         List<Task<string>> inputTasks = new();

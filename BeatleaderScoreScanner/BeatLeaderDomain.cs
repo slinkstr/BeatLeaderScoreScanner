@@ -45,9 +45,9 @@ namespace BeatLeaderScoreScanner
             if (!IsValid(uri)) { return false; }
 
             string[] hostSegments = uri.Host.Split(".");
-            if (hostSegments.Length != 4)    { return false; }
-            if (hostSegments[0] != "cdn")    { return false; }
-            if (hostSegments[1] != "replay") { return false; }
+            if (hostSegments.Length != 4)     { return false; }
+            if (hostSegments[0] != "cdn")     { return false; }
+            if (hostSegments[1] != "replays") { return false; }
 
             return true;
         }
