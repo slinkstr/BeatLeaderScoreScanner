@@ -36,7 +36,7 @@ namespace BeatLeaderScoreScanner
         {
             return MatchingFrames(replay, [ new TwoFrameDirectionComparator() ], [ new OriginResetComparator() ], requireScoreLoss);
         }
-        
+
         public static List<Frame> OriginResets(Replay replay)
         {
             return MatchingFrames(replay, [ new OriginResetComparator() ]);
@@ -58,7 +58,7 @@ namespace BeatLeaderScoreScanner
                 {
                     return true;
                 }
-                
+
                 return false;
             }).ToList();
 
@@ -110,13 +110,13 @@ namespace BeatLeaderScoreScanner
                         continue;
                     }
                 }
-                
+
                 foreach (var comparator in ignoreComparators ?? [])
                 {
                     if (comparator.Compare(frame, replay.saberOffsets))
                     {
                         debounceSkipTo = i + DebounceDurationTicks;
-                        
+
                     }
                 }
 
@@ -374,9 +374,9 @@ class DistanceComparator : FrameComparator
 class OriginResetComparator : FrameComparator
 {
     private const float _threshold = 0.01f;
-    
+
     protected override CircularBuffer<Frame> FrameBuffer { get; set; } = new(1);
-    
+
     protected override bool Detected(SaberOffsets? saberOffsets = null)
     {
         var frame = FrameBuffer[0];
@@ -385,7 +385,7 @@ class OriginResetComparator : FrameComparator
             frame.leftHand.position,
             frame.rightHand.position,
         ];
-        
+
         if (saberOffsets != null)
         {
             positions[0].x -= saberOffsets.leftSaberLocalPosition.x;
@@ -395,18 +395,18 @@ class OriginResetComparator : FrameComparator
             positions[1].y -= saberOffsets.rightSaberLocalPosition.y;
             positions[1].z -= saberOffsets.rightSaberLocalPosition.z;
         }
-        
+
         // Quaternion[] rotations =
         // [
         //     frame.leftHand.rotation,
         //     frame.rightHand.rotation,
         // ];
-        
+
         if (positions.Any(vec => Math.Abs(vec.x) > _threshold || Math.Abs(vec.y) > _threshold || Math.Abs(vec.z) > _threshold))
         {
             return false;
         }
-        
+
         return true;
     }
 }

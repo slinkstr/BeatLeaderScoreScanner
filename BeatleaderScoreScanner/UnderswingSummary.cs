@@ -28,20 +28,12 @@ namespace BeatLeaderScoreScanner
 
         private static int CalculateUnderswingPoints(Replay replay)
         {
-#if DEBUG
-            bool output = false;
-            int totalScore = 0;
-            int counter = 0;
-#endif
             int totalUnderPre = 0;
             int totalUnderPost = 0;
             MultiplierCounter multiplierCounter = new();
 
             foreach (var note in replay.notes.OrderBy(x => x.eventTime)) // redundant sort just in case
             {
-#if DEBUG
-                counter++;
-#endif
                 if (note.eventType != NoteEventType.good)
                 {
                     multiplierCounter.Decrease();
@@ -72,20 +64,8 @@ namespace BeatLeaderScoreScanner
                 int underPre  = targetPre  - note.score.pre_score;
                 int underPost = targetPost - note.score.post_score;
 
-#if DEBUG
-                if ((underPre > 0 || underPost > 0) && output)
-                {
-                    Console.WriteLine($"Underswing note at {note.eventTime} | " +
-                        $"Pre: {underPre}, Post: {underPost} | " +
-                        $"X={note.noteParams.lineIndex}, Y={note.noteParams.noteLineLayer}, color={(note.noteParams.colorType == 0 ? "red" : "blue")}");
-                }
-#endif
-
                 totalUnderPre  += underPre * multiplierCounter.Multiplier;
                 totalUnderPost += underPost * multiplierCounter.Multiplier;
-#if DEBUG
-                totalScore += note.score.value * multiplierCounter.Multiplier;
-#endif
             }
 
             return totalUnderPre + totalUnderPost;

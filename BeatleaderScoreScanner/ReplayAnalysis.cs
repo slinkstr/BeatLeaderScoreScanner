@@ -47,7 +47,7 @@ namespace BeatLeaderScoreScanner
                    $"{OriginResetFrames.Count} origin resets ({OriginResetsPerMinute:F2}/min) | " +
                    $"{Replay.info.songName}" + (string.IsNullOrWhiteSpace(LeaderboardId) ? "" : $" ({LeaderboardId})");
         }
-        
+
         private static string ReplayTimestamp(Uri replayUri, float time)
         {
             return $"{BeatLeaderDomain.Replay}/?link={replayUri}&speed=2&time={(int)(time * 1000) - 50}";
