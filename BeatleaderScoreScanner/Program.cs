@@ -125,7 +125,7 @@ internal class Program
 
             output = JsonConvert.SerializeObject(analysis, new JsonSerializerSettings()
             {
-                ContractResolver = new IgnorePropertiesResolver(["frames", "heights", "notes", "pauses", "walls", "fps", "head", "leftHand", "rightHand"]),
+                ContractResolver = new IgnorePropertiesResolver(["frames", "heights", "notes", "pauses", "walls", "fps", "head", "leftHand", "rightHand", "normalized"]),
             });
         }
 
