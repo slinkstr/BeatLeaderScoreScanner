@@ -82,6 +82,13 @@ internal class Program
             output += OutputAnalysis(analysis, config.OutputFormat) + "\n";
         }
         output = output.TrimEnd('\n');
+        
+        if(config.OutputFormat == ProgramConfig.Format.json)
+        {
+            var outputLines = output.Split('\n');
+            output = "[" + string.Join(',', outputLines) + "]";
+        }
+        
         return output;
     }
 

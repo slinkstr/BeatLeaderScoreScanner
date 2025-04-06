@@ -96,13 +96,7 @@ namespace HttpWrapper
                     RedirectStandardError = true,
                 };
                 var blss = Process.Start(blssStartinfo);
-
-                List<string> outputLines = new();
-                string? line;
-                while((line = await blss!.StandardOutput.ReadLineAsync()) != null)
-                {
-                    outputLines.Add(line);
-                }
+                var blssOut = await blss.StandardOutput.ReadToEndAsync();
                 var blssErr = await blss.StandardError.ReadToEndAsync();
                 blss.StandardOutput.Close();
                 blss.StandardError .Close();
@@ -114,7 +108,7 @@ namespace HttpWrapper
                     continue;
                 }
 
-                byte[] data = Encoding.UTF8.GetBytes("[" + string.Join(',', outputLines) + "]");
+                byte[] data = Encoding.UTF8.GetBytes(blssOut);
                 response.ContentType = "application/json";
                 response.ContentEncoding = Encoding.UTF8;
                 response.ContentLength64 = data.LongLength;
