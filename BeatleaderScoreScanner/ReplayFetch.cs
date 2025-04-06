@@ -12,6 +12,7 @@ namespace BeatLeaderScoreScanner
         static ReplayFetch()
         {
             Directory.CreateDirectory(_cachePath);
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("BeatLeaderScoreScanner (+https://github.com/slinkstr/BeatleaderScoreScanner/)");
         }
 
         public static async Task<Replay> FromUri(string uri)

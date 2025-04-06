@@ -8,7 +8,6 @@ using ReplayDecoder;
 internal class Program
 {
     private static HttpClient         _httpClient = new();
-    private static AsyncReplayDecoder _decoder    = new();
     private static ProgramConfig?     _config;
 
     private static async Task Main(string[] args)
@@ -19,6 +18,8 @@ internal class Program
             // Output already handled
             Environment.Exit(0);
         }
+        
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("BeatLeaderScoreScanner (+https://github.com/slinkstr/BeatleaderScoreScanner/)");
 
         List<Task<string>> inputTasks = new();
         foreach (string input in _config.Inputs)
