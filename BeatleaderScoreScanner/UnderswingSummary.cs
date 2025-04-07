@@ -32,8 +32,22 @@ namespace BeatLeaderScoreScanner
             int totalUnderPost = 0;
             MultiplierCounter multiplierCounter = new();
 
-            foreach (var note in replay.notes.OrderBy(x => x.eventTime)) // redundant sort just in case
+            var comboEvents = replay.notes.Concat<object>(replay.walls).ToList().OrderBy(x =>
             {
+                if (x is NoteEvent n) { return n.eventTime; }
+                if (x is WallEvent w) { return w.time;      }
+                throw new Exception("Encountered unknown type in comboEvents");
+            });
+            
+            foreach (var comboEvent in comboEvents)
+            {
+                if (comboEvent is WallEvent)
+                {
+                    multiplierCounter.Decrease();
+                    continue;
+                }
+                
+                var note = comboEvent as NoteEvent ?? throw new Exception("Unable to cast comboEvent to NoteEvent");
                 if (note.eventType != NoteEventType.good)
                 {
                     multiplierCounter.Decrease();
