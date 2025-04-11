@@ -71,8 +71,11 @@ namespace BeatLeaderScoreScanner
         [Option('o', "output-format", Default = Format.text, HelpText = "Changes output format.")]
         public Format              OutputFormat      { get; private set; }
 
-        [Option('s', "minimum-score", Default = 0, HelpText = "Only process replays that are above this percentage when scanning a profile. Valid values: 0.0 - 1.0")]
+        [Option('s', "minimum-score", Default = 0, HelpText = "Only output replays that are above this percentage. Valid values: 0.0 - 1.0")]
         public float               MinimumScore      { get; private set; }
+
+        [Option('f', "require-fc", HelpText = "Only output replays that full combo.")]
+        public bool                RequireFC         { get; private set; } = false;
 
         [Option('c', "count", Default = 10, HelpText = "Set the number of recent plays to fetch when scanning a profile.")]
         public int                 Count             { get; private set; }
@@ -80,16 +83,13 @@ namespace BeatLeaderScoreScanner
         [Option('p', "page", Default = 1, HelpText = "Set the page to skip to when scanning a profile.")]
         public int                 Page              { get; private set; }
 
-        [Option('f', "require-fc", HelpText = "Only process replays that full combo when scanning a profile.")]
-        public bool                RequireFC         { get; private set; } = false;
-
         [Option('u', "require-score-loss", HelpText = "Only print jitter times immediately before or after a note with underswing.")]
         public bool                RequireScoreLoss { get; private set; } = false;
 
         [Option('a', "allow-file", HelpText = "Allow reading replay files from disk.")]
         public bool                AllowFile         { get; private set; } = false;
 
-        [Value(0, Min = 1, MetaName = "input", HelpText = "BeatLeader profile ID or URL, or replay URL.")]
+        [Value(0, Min = 1, MetaName = "input", HelpText = "Replay URL, replay filepath, or BeatLeader profile ID/URL.")]
         public IEnumerable<string> Inputs            { get; private set; } = [];
 
         public enum Format
@@ -101,8 +101,8 @@ namespace BeatLeaderScoreScanner
         [Usage(ApplicationAlias = "BeatLeaderScoreScanner")]
         public static List<Example> Examples { get; private set; } =
         [
-            new Example("Scan profile"    , new ProgramConfig { Inputs = new List<string>() { "<profile>" } }),
-            new Example("Scan score"      , new ProgramConfig { Inputs = new List<string>() { "<replay_url>" } }),
+            new Example("Scan profile", new ProgramConfig { Inputs = new List<string> { "<profile>"    } }),
+            new Example("Scan replay" , new ProgramConfig { Inputs = new List<string> { "<replay_url>" } }),
         ];
     }
 }

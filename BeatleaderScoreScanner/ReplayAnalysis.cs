@@ -1,28 +1,32 @@
-﻿using ReplayDecoder;
+﻿using System.Web;
+using ReplayDecoder;
 
 namespace BeatLeaderScoreScanner
 {
     internal class ReplayAnalysis
     {
-        public List<Frame>       JitterFrames          { get; private set; }
-        public List<string>      JitterLinks           => JitterFrames.Select(f => ReplayTimestamp(ReplayUri, f.time)).ToList();
-        public float             JittersPerMinute      => JitterFrames.Count / (Replay.frames.Last().time / 60f);
         public string            LeaderboardId         { get; private set; }
-        public List<Frame>       OriginResetFrames     { get; private set; }
-        public List<string>      OriginResetLinks      => OriginResetFrames.Select(f => ReplayTimestamp(ReplayUri, f.time)).ToList();
-        public float             OriginResetsPerMinute => OriginResetFrames.Count / (Replay.frames.Last().time / 60f);
         public Replay            Replay                { get; private set; }
         public Uri               ReplayUri             { get; private set; }
         public string?           ScoreId               => BeatLeaderDomain.IsReplayCdn(ReplayUri) ? ReplayUri.Segments.LastOrDefault()?.Split("-")?[0] : null;
+        public int               Mistakes              { get; private set; }
+        public float             PlayDuration          => Replay.frames.LastOrDefault()?.time ?? 0;
+        public List<Frame>       JitterFrames          { get; private set; }
+        public List<string>      JitterLinks           => JitterFrames.Select(f => ReplayTimestamp(ReplayUri, f.time)).ToList();
+        public float             JittersPerMinute      => JitterFrames.Count / (Replay.frames.Last().time / 60f);
+        public List<Frame>       OriginResetFrames     { get; private set; }
+        public List<string>      OriginResetLinks      => OriginResetFrames.Select(f => ReplayTimestamp(ReplayUri, f.time)).ToList();
+        public float             OriginResetsPerMinute => OriginResetFrames.Count / (Replay.frames.Last().time / 60f);
         public UnderswingSummary Underswing            { get; private set; }
 
         public ReplayAnalysis(Replay replay, bool requireScoreLoss, Uri replayUri, string leaderboardId)
         {
-            JitterFrames      = JitterDetector.Jitters(replay, requireScoreLoss);
             LeaderboardId     = leaderboardId;
-            OriginResetFrames = JitterDetector.OriginResets(replay);
             Replay            = replay;
             ReplayUri         = replayUri;
+            Mistakes          = replay.walls.Count + replay.notes.Count(x => x.eventType != NoteEventType.good);
+            JitterFrames      = JitterDetector.Jitters(replay, requireScoreLoss);
+            OriginResetFrames = JitterDetector.OriginResets(replay);
             Underswing        = new UnderswingSummary(replay);
         }
 
@@ -50,6 +54,12 @@ namespace BeatLeaderScoreScanner
 
         private static string ReplayTimestamp(Uri replayUri, float time)
         {
+            if (replayUri.IsFile)
+            {
+                // rewrite as localhost, requires running a web server on :8000 with CORS header set
+                replayUri = new Uri("http://localhost:8000/" + HttpUtility.UrlEncode(replayUri.Segments.LastOrDefault()));
+            }
+            
             return $"{BeatLeaderDomain.Replay}/?link={replayUri}&speed=2&time={(int)(time * 1000) - 50}";
         }
     }

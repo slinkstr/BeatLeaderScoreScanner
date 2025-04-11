@@ -12,7 +12,7 @@ namespace BeatLeaderScoreScanner
         static ReplayFetch()
         {
             Directory.CreateDirectory(_cachePath);
-            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("BeatLeaderScoreScanner (+https://github.com/slinkstr/BeatleaderScoreScanner/)");
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("BeatLeaderScoreScanner (+https://github.com/slinkstr/BeatLeaderScoreScanner/)");
         }
 
         public static async Task<Replay> FromUri(string uri)
@@ -24,7 +24,7 @@ namespace BeatLeaderScoreScanner
         {
             if (uri.IsFile)
             {
-                return await FromFile(uri.AbsolutePath);
+                return await FromFile(uri.LocalPath);
             }
 
             string filename   = GetCachedFilename(uri);

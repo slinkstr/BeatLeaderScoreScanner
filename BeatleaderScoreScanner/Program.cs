@@ -19,7 +19,7 @@ internal class Program
             Environment.Exit(0);
         }
         
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("BeatLeaderScoreScanner (+https://github.com/slinkstr/BeatleaderScoreScanner/)");
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("BeatLeaderScoreScanner (+https://github.com/slinkstr/BeatLeaderScoreScanner/)");
 
         List<Task<string>> inputTasks = new();
         foreach (string input in _config.Inputs)
@@ -39,9 +39,12 @@ internal class Program
 
         if (Uri.TryCreate(HttpUtility.UrlDecode(input), UriKind.Absolute, out var result))
         {
-            if (result.IsFile && !config.AllowFile) { throw new Exception("Unable to read file, pass --allow-file to allow."); }
-
-            if (BeatLeaderDomain.IsValid(result) && result.Segments.Length > 1 && result.Segments[1] == "u/")
+            if (result.IsFile)
+            {
+                if (!config.AllowFile) { throw new Exception("Unable to read file, pass --allow-file to allow."); }
+                tasks.AddRange(await AnalyzeFromFile(input, config));
+            }
+            else if (BeatLeaderDomain.IsValid(result) && result.Segments.Length > 1 && result.Segments[1] == "u/")
             {
                 tasks.AddRange(await AnalyzeFromProfileId(result.Segments[2].TrimEnd('/'), config));
             }
@@ -75,6 +78,13 @@ internal class Program
         }
 
         var analyses = await Task.WhenAll(tasks);
+        analyses = analyses.Select(analysis =>
+        {
+            if (analysis is null)                              { return null; }
+            if (config.RequireFC && analysis.Mistakes > 0)     { return null; }
+            if (config.MinimumScore > analysis.Underswing.Acc) { return null; }
+            return analysis;
+        }).ToArray();
 
         string output = "";
         foreach (var analysis in analyses)
@@ -142,7 +152,7 @@ internal class Program
 
     public static async Task<List<Task<ReplayAnalysis?>>> AnalyzeFromProfileId(string playerId, ProgramConfig config)
     {
-        List<Task<ReplayAnalysis?>> analysisTasks = new();
+        List<Task<ReplayAnalysis?>> analysisTasks = [];
 
         var scores = await GetPlayerScores(playerId, config.Count, config.Page);
         foreach (var score in scores)
@@ -175,6 +185,33 @@ internal class Program
         var replay = await ReplayFetch.FromUri(replayUrl);
         return await ScanReplay(replay, config.RequireScoreLoss, new Uri(replayUrl));
     }
+    
+    public static async Task<List<Task<ReplayAnalysis?>>> AnalyzeFromFile(string filepath, ProgramConfig config)
+    {
+        List<Task<ReplayAnalysis?>> analysisTasks = [];
+        if (Directory.Exists(filepath))
+        {
+            var files = Directory.GetFiles(filepath);
+            foreach (var file in files)
+            {
+                if (!file.EndsWith(".bsor")) { continue; }
+
+                var replay = await ReplayFetch.FromFile(file);
+                analysisTasks.Add(ScanReplay(replay, config.RequireScoreLoss, new Uri(file)));
+            }
+        }
+        else if (File.Exists(filepath))
+        {
+            var replay = await ReplayFetch.FromFile(filepath);
+            analysisTasks.Add(ScanReplay(replay, config.RequireScoreLoss, new Uri(filepath)));
+        }
+        else
+        {
+            throw new Exception("File not found: " + filepath);
+        }
+        
+        return analysisTasks;
+    }
 
     private static async Task<ReplayAnalysis> ScanScore(dynamic score, ProgramConfig config)
     {
@@ -189,7 +226,7 @@ internal class Program
 
     private static async Task<ReplayAnalysis> ScanReplay(Replay replay, bool requireScoreLoss, Uri replayUrl, string leaderboardId = "")
     {
-        ReplayAnalysis analysis = await Task.Run(() => { return new ReplayAnalysis(replay, requireScoreLoss, replayUrl, leaderboardId); });
+        ReplayAnalysis analysis = await Task.Run(() => new ReplayAnalysis(replay, requireScoreLoss, replayUrl, leaderboardId));
         return analysis;
     }
 
