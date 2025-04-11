@@ -96,6 +96,12 @@ namespace HttpWrapper
                     RedirectStandardError = true,
                 };
                 var blss = Process.Start(blssStartinfo);
+                if (blss == null)
+                {
+                    await Console.Out.WriteLineAsync("Unable to start BLSS.");
+                    await BadRequest(response);
+                    continue;
+                }
                 var blssOut = await blss.StandardOutput.ReadToEndAsync();
                 var blssErr = await blss.StandardError.ReadToEndAsync();
                 blss.StandardOutput.Close();
@@ -103,7 +109,7 @@ namespace HttpWrapper
 
                 if (!string.IsNullOrWhiteSpace(blssErr))
                 {
-                    await Console.Out.WriteLineAsync("Rejecting due to BLSS error. Ouptut:\n" + blssErr);
+                    await Console.Out.WriteLineAsync("Rejecting due to BLSS error. Output:\n" + blssErr);
                     await BadRequest(response);
                     continue;
                 }
