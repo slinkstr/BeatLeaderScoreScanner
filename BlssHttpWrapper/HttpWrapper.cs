@@ -89,11 +89,11 @@ namespace HttpWrapper
                     Arguments = $"--output-format json " +
                                 (page != 1 ? $"--page {page} " : "") +
                                 (minimumScore > 0 ? $"--minimum-score {minimumScore} " : "") +
-                                (requireScoreLoss ? "--require-score-loss " : "") +
+                                (requireScoreLoss ? "--jitter-require-score-loss " : "") +
                                 (requireFc ? "--require-fc " : "") +
                                 $"-- {SanitizeForCommandLine(replayInput)}",
                     RedirectStandardOutput = true,
-                    RedirectStandardError = true,
+                    RedirectStandardError  = true,
                 };
                 var blss = Process.Start(blssStartinfo);
                 if (blss == null)
@@ -102,6 +102,7 @@ namespace HttpWrapper
                     await BadRequest(response);
                     continue;
                 }
+
                 var blssOut = await blss.StandardOutput.ReadToEndAsync();
                 var blssErr = await blss.StandardError.ReadToEndAsync();
                 blss.StandardOutput.Close();

@@ -1,4 +1,5 @@
 ﻿using System.Web;
+using BeatLeaderScoreScanner.ReplayAnalyses;
 using ReplayDecoder;
 
 namespace BeatLeaderScoreScanner
@@ -9,25 +10,25 @@ namespace BeatLeaderScoreScanner
         public Replay            Replay                { get; private set; }
         public Uri               ReplayUri             { get; private set; }
         public string?           ScoreId               => BeatLeaderDomain.IsReplayCdn(ReplayUri) ? ReplayUri.Segments.LastOrDefault()?.Split("-")?[0] : null;
-        public int               Mistakes              { get; private set; }
+        public int               Mistakes              => Replay.walls.Count + Replay.notes.Count(x => x.eventType != NoteEventType.good);
         public float             PlayDuration          => Replay.frames.LastOrDefault()?.time ?? 0;
-        public List<Frame>       JitterFrames          { get; private set; }
-        public List<string>      JitterLinks           => JitterFrames.Select(f => ReplayTimestamp(ReplayUri, f.time)).ToList();
-        public float             JittersPerMinute      => JitterFrames.Count / (Replay.frames.Last().time / 60f);
-        public List<Frame>       OriginResetFrames     { get; private set; }
-        public List<string>      OriginResetLinks      => OriginResetFrames.Select(f => ReplayTimestamp(ReplayUri, f.time)).ToList();
-        public float             OriginResetsPerMinute => OriginResetFrames.Count / (Replay.frames.Last().time / 60f);
-        public UnderswingSummary Underswing            { get; private set; }
+        public Jitter            Jitter                { get; private set; }
+        public OriginReset       OriginReset           { get; private set; }
+        public Underswing        Underswing            { get; private set; }
 
         public ReplayAnalysis(Replay replay, bool requireScoreLoss, Uri replayUri, string leaderboardId)
         {
-            LeaderboardId     = leaderboardId;
-            Replay            = replay;
-            ReplayUri         = replayUri;
-            Mistakes          = replay.walls.Count + replay.notes.Count(x => x.eventType != NoteEventType.good);
-            JitterFrames      = JitterDetector.Jitters(replay, requireScoreLoss);
-            OriginResetFrames = JitterDetector.OriginResets(replay);
-            Underswing        = new UnderswingSummary(replay);
+            LeaderboardId = leaderboardId;
+            Replay        = replay;
+            ReplayUri     = replayUri;
+            Jitter        = new Jitter(replay);
+            OriginReset   = new OriginReset(replay);
+            Underswing    = new Underswing(replay);
+
+            if (requireScoreLoss)
+            {
+                Jitter.Events = Jitter.CausedScoreLoss(Underswing.Events.Select(x => x.Note).ToArray());
+            }
         }
 
         public DateTime Date()
@@ -43,24 +44,44 @@ namespace BeatLeaderScoreScanner
 
         public override string ToString()
         {
+            var jitterPerMinute = Jitter.Events.Count / (PlayDuration / 60f);
+            var originResetPerMinute = OriginReset.Events.Count / (PlayDuration / 60f);
+            var underswingPerMinute = Underswing.Events.Count / (PlayDuration / 60f);
+
             return $"{Date():yyyy-MM-dd} | " +
                    $"{SysInfo()} | " +
-                   $"{Underswing.Acc * 100:0.00}% | " +
-                   $"Lost {Underswing.LostScore} points ({Underswing.LostAcc * 100:0.00}%), fullswing acc: {Underswing.FullSwingAcc * 100:0.00}% | " +
-                   $"{JitterFrames.Count} jitters ({JittersPerMinute:F2}/min) | " +
-                   $"{OriginResetFrames.Count} origin resets ({OriginResetsPerMinute:F2}/min) | " +
+                   $"{Underswing.Percent * 100:0.00}% | " +
+                   $"JITTERS: {Jitter.Events.Count} ({jitterPerMinute:F2}/min) | " +
+                   $"ORIGIN RESETS: {OriginReset.Events.Count} ({originResetPerMinute:F2}/min) | " +
+                   $"UNDERSWING: {Underswing.Events.Count} ({underswingPerMinute:F2}/min), {Underswing.ScoreLost} points ({Underswing.PercentLost * 100:0.00}%), fullswing: {Underswing.PercentFullSwing * 100:0.00}% | " +
                    $"{Replay.info.songName}" + (string.IsNullOrWhiteSpace(LeaderboardId) ? "" : $" ({LeaderboardId})");
+        }
+
+        public List<string> JitterLinks()
+        {
+            return Jitter.Events.Select(x => ReplayTimestamp(ReplayUri, x.Frame.time)).ToList();
+        }
+
+        public List<string> OriginResetLinks()
+        {
+            return OriginReset.Events.Select(x => ReplayTimestamp(ReplayUri, x.Frame.time)).ToList();
+        }
+
+        public List<string> UnderswingLinks()
+        {
+            return Underswing.Events.Select(x => ReplayTimestamp(ReplayUri, x.Note.eventTime)).ToList();
         }
 
         private static string ReplayTimestamp(Uri replayUri, float time)
         {
             if (replayUri.IsFile)
             {
-                // rewrite as localhost, requires running a web server on :8000 with CORS header set
+                // For easy previewing.
+                // Host a local webserver on port 8000 with CORS header set to "*" pointing to your replay folder.
                 replayUri = new Uri("http://localhost:8000/" + HttpUtility.UrlEncode(replayUri.Segments.LastOrDefault()));
             }
-            
-            return $"{BeatLeaderDomain.Replay}/?link={replayUri}&speed=2&time={(int)(time * 1000) - 50}";
+
+            return $"{BeatLeaderDomain.Replay}/?link={replayUri}&speed=2&time={(int)(time * 1000) - 65}";
         }
     }
 }

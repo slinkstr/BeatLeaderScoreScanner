@@ -18,7 +18,7 @@ internal class Program
             // Output already handled
             Environment.Exit(0);
         }
-        
+
         _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("BeatLeaderScoreScanner (+https://github.com/slinkstr/BeatLeaderScoreScanner/)");
 
         List<Task<string>> inputTasks = new();
@@ -82,7 +82,7 @@ internal class Program
         {
             if (analysis is null)                              { return null; }
             if (config.RequireFC && analysis.Mistakes > 0)     { return null; }
-            if (config.MinimumScore > analysis.Underswing.Acc) { return null; }
+            if (config.MinimumScore > analysis.Underswing.Percent) { return null; }
             return analysis;
         }).ToArray();
 
@@ -92,13 +92,13 @@ internal class Program
             output += OutputAnalysis(analysis, config.OutputFormat) + "\n";
         }
         output = output.TrimEnd('\n');
-        
+
         if(config.OutputFormat == ProgramConfig.Format.json)
         {
             var outputLines = output.Split('\n');
             output = "[" + string.Join(',', outputLines) + "]";
         }
-        
+
         return output;
     }
 
@@ -114,22 +114,32 @@ internal class Program
 
             output = analysis.ToString();
 
-            if (analysis.JitterFrames.Count > 0)
+            if (analysis.Jitter.Events.Count > 0)
             {
-                output += "\nJITTERS:\n";
-                foreach (var time in analysis.JitterLinks)
+                output += "\nJITTER LINKS:\n";
+                foreach (var link in analysis.JitterLinks())
                 {
-                    output += $"\t{time}\n";
+                    output += $"\t{link}\n";
                 }
                 output = output.TrimEnd('\n');
             }
 
-            if (analysis.OriginResetFrames.Count > 0)
+            if (analysis.OriginReset.Events.Count > 0)
             {
-                output += "\nORIGIN RESETS:\n";
-                foreach (var time in analysis.OriginResetLinks)
+                output += "\nORIGIN RESET LINKS:\n";
+                foreach (var link in analysis.OriginResetLinks())
                 {
-                    output += $"\t{time}\n";
+                    output += $"\t{link}\n";
+                }
+                output = output.TrimEnd('\n');
+            }
+
+            if (analysis.Underswing.Events.Count > 0)
+            {
+                output += "\nUNDERSWING LINKS:\n";
+                foreach (var link in analysis.UnderswingLinks())
+                {
+                    output += $"\t{link}\n";
                 }
                 output = output.TrimEnd('\n');
             }
@@ -143,7 +153,12 @@ internal class Program
 
             output = JsonConvert.SerializeObject(analysis, new JsonSerializerSettings()
             {
-                ContractResolver = new IgnorePropertiesResolver(["frames", "heights", "notes", "pauses", "walls", "fps", "head", "leftHand", "rightHand", "normalized"]),
+                ContractResolver = new IgnorePropertiesResolver([
+                    "frames", "heights", "notes", "pauses", "walls", // Replay
+                    "normalized", // Vector3
+                    "fps", "head", "leftHand", "rightHand", // Frame
+                    "noteCutInfo", // NoteEvent
+                ]),
             });
         }
 
@@ -183,9 +198,9 @@ internal class Program
     public static async Task<ReplayAnalysis?> AnalyzeFromBsorUrl(string replayUrl, ProgramConfig config)
     {
         var replay = await ReplayFetch.FromUri(replayUrl);
-        return await ScanReplay(replay, config.RequireScoreLoss, new Uri(replayUrl));
+        return await ScanReplay(replay, config.JitterRequireScoreLoss, new Uri(replayUrl));
     }
-    
+
     public static async Task<List<Task<ReplayAnalysis?>>> AnalyzeFromFile(string filepath, ProgramConfig config)
     {
         List<Task<ReplayAnalysis?>> analysisTasks = [];
@@ -197,19 +212,19 @@ internal class Program
                 if (!file.EndsWith(".bsor")) { continue; }
 
                 var replay = await ReplayFetch.FromFile(file);
-                analysisTasks.Add(ScanReplay(replay, config.RequireScoreLoss, new Uri(file)));
+                analysisTasks.Add(ScanReplay(replay, config.JitterRequireScoreLoss, new Uri(file)));
             }
         }
         else if (File.Exists(filepath))
         {
             var replay = await ReplayFetch.FromFile(filepath);
-            analysisTasks.Add(ScanReplay(replay, config.RequireScoreLoss, new Uri(filepath)));
+            analysisTasks.Add(ScanReplay(replay, config.JitterRequireScoreLoss, new Uri(filepath)));
         }
         else
         {
             throw new Exception("File not found: " + filepath);
         }
-        
+
         return analysisTasks;
     }
 
@@ -220,7 +235,7 @@ internal class Program
         var scoreLeaderboardId = (string)score.leaderboardId;
 
         var replay = await ReplayFetch.FromUri((string)score.replay);
-        var analysis = await ScanReplay(replay, config.RequireScoreLoss, scoreReplayUrl, scoreLeaderboardId);
+        var analysis = await ScanReplay(replay, config.JitterRequireScoreLoss, scoreReplayUrl, scoreLeaderboardId);
         return analysis;
     }
 

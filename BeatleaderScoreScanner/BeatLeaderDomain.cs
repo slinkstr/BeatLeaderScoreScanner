@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace BeatLeaderScoreScanner
 {
     internal static class BeatLeaderDomain
